@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
-import type { Project, ProjectLink, LaunchChecklistItem } from "../types/index.ts";
+import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem } from "../types/index.ts";
 
 const DEFAULT_CHECKLIST = [
   "Custom domain connected", "SSL certificate active", "Privacy Policy published",
@@ -164,6 +164,52 @@ router.delete("/:id/launch-checklist/:itemId", (c) => {
   }
   db.run("DELETE FROM launch_checklist WHERE id = ? AND project_id = ?",
     [c.req.param("itemId"), c.req.param("id")]);
+  return c.json({ ok: true });
+});
+
+// GET /api/projects/:id/tech-debt
+router.get("/:id/tech-debt", (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  return c.json(
+    db.query<TechDebtItem, [string]>(
+      "SELECT * FROM tech_debt WHERE project_id = ? ORDER BY created_at DESC"
+    ).all(c.req.param("id"))
+  );
+});
+
+// POST /api/projects/:id/tech-debt
+router.post("/:id/tech-debt", async (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  const { note } = await c.req.json();
+  if (!note) return c.json({ error: "note required" }, 400);
+  const id = crypto.randomUUID();
+  db.run("INSERT INTO tech_debt (id, project_id, note, resolved, created_at) VALUES (?, ?, ?, 0, ?)",
+    [id, c.req.param("id"), note, Date.now()]);
+  return c.json(db.query<TechDebtItem, [string]>("SELECT * FROM tech_debt WHERE id = ?").get(id), 201);
+});
+
+// PUT /api/projects/:id/tech-debt/:debtId
+router.put("/:id/tech-debt/:debtId", async (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  const { resolved } = await c.req.json();
+  db.run("UPDATE tech_debt SET resolved = ? WHERE id = ? AND project_id = ?",
+    [resolved ? 1 : 0, c.req.param("debtId"), c.req.param("id")]);
+  return c.json({ ok: true });
+});
+
+// DELETE /api/projects/:id/tech-debt/:debtId
+router.delete("/:id/tech-debt/:debtId", (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  db.run("DELETE FROM tech_debt WHERE id = ? AND project_id = ?",
+    [c.req.param("debtId"), c.req.param("id")]);
   return c.json({ ok: true });
 });
 

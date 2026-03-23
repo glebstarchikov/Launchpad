@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ChevronRight, ExternalLink, Pencil, Plus, Trash2, X, Check,
+  ChevronRight, ExternalLink, Pencil, Plus, RefreshCw, Trash2, X, Check,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,10 +16,10 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { StageBadge, TypeBadge, TagInput } from "@/components/app-ui";
+import { StageBadge, TypeBadge, TagInput, PingDot } from "@/components/app-ui";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import type { Project, ProjectLink, LaunchChecklistItem, ProjectStage, ProjectType } from "@/lib/types";
+import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, ProjectStage, ProjectType } from "@/lib/types";
 
 const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
 const TYPES: ProjectType[] = ["for-profit", "open-source"];
@@ -110,7 +110,7 @@ export default function ProjectDetail() {
             <OverviewTab project={project} id={id!} queryClient={queryClient} navigate={navigate} />
           </TabsContent>
           <TabsContent value="health" className="mt-0">
-            <div className="text-muted-foreground p-4">Health tab — coming in Task 6</div>
+            <HealthTab project={project} id={id!} queryClient={queryClient} />
           </TabsContent>
           {project.type === "for-profit" && (
             <TabsContent value="revenue" className="mt-0">
@@ -153,6 +153,120 @@ function OverviewTab({ project, id, queryClient, navigate }: OverviewTabProps) {
         <LinksHubCard project={project} id={id} queryClient={queryClient} />
         <DangerZoneCard project={project} id={id} queryClient={queryClient} navigate={navigate} />
       </div>
+    </div>
+  );
+}
+
+function HealthTab({ project, id, queryClient }: { project: Project; id: string; queryClient: ReturnType<typeof useQueryClient> }) {
+  const [pingStatus, setPingStatus] = useState<"up" | "down" | null>(null);
+  const [pingLatency, setPingLatency] = useState<number | null>(null);
+  const [pinging, setPinging] = useState(false);
+  const [debtNote, setDebtNote] = useState("");
+
+  const { data: techDebt = [] } = useQuery({
+    queryKey: ["tech-debt", id],
+    queryFn: () => api.projects.techDebt.list(id),
+  });
+
+  const addDebt = useMutation({
+    mutationFn: (note: string) => api.projects.techDebt.create(id, note),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tech-debt", id] });
+      setDebtNote("");
+    },
+  });
+
+  const updateDebt = useMutation({
+    mutationFn: ({ debtId, resolved }: { debtId: string; resolved: boolean }) =>
+      api.projects.techDebt.update(id, debtId, resolved),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tech-debt", id] }),
+  });
+
+  const deleteDebt = useMutation({
+    mutationFn: (debtId: string) => api.projects.techDebt.delete(id, debtId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tech-debt", id] }),
+  });
+
+  const handlePing = async () => {
+    if (!project.url) return;
+    setPinging(true);
+    try {
+      const result = await api.ping(project.url);
+      setPingStatus(result.status);
+      setPingLatency(result.latencyMs);
+    } catch {
+      setPingStatus("down");
+      setPingLatency(null);
+    } finally {
+      setPinging(false);
+    }
+  };
+
+  const handleAddDebt = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (debtNote.trim()) addDebt.mutate(debtNote.trim());
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Site Status card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Site Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3">
+            <PingDot status={pingStatus} />
+            <span className="font-mono text-sm">{project.url ?? "No URL set"}</span>
+            {pingLatency !== null && (
+              <span className={cn("text-xs", pingStatus === "up" ? "text-success" : "text-destructive")}>
+                {pingStatus === "up" ? `${pingLatency}ms` : "unreachable"}
+              </span>
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              className="ml-auto gap-1.5"
+              disabled={!project.url || pinging}
+              onClick={handlePing}
+            >
+              <RefreshCw size={12} className={cn(pinging && "animate-spin")} />
+              Ping Now
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tech Debt card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Tech Debt</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {techDebt.map((item: TechDebtItem) => (
+            <div key={item.id} className={cn(
+              "flex items-start gap-2 p-2 rounded border",
+              item.resolved ? "border-success/20" : "border-warning/20"
+            )}>
+              <Checkbox
+                checked={item.resolved === 1}
+                onCheckedChange={(v) => updateDebt.mutate({ debtId: item.id, resolved: !!v })}
+              />
+              <span className={cn("text-sm flex-1", item.resolved && "line-through text-muted-foreground")}>
+                {item.note}
+              </span>
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                onClick={() => deleteDebt.mutate(item.id)}>
+                <Trash2 size={12} />
+              </Button>
+            </div>
+          ))}
+          <form onSubmit={handleAddDebt} className="flex gap-2 mt-3">
+            <Input value={debtNote} onChange={e => setDebtNote(e.target.value)} placeholder="Add tech debt item..." />
+            <Button type="submit" variant="secondary" size="sm">Add</Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -345,7 +459,7 @@ function LaunchChecklistCard({ id, queryClient }: { id: string; queryClient: Ret
           <CardTitle className="text-sm font-medium">Launch Checklist</CardTitle>
           <span className="text-xs text-muted-foreground">{completed}/{items.length}</span>
         </div>
-        <Progress value={pct} className="h-1.5 mt-2" />
+        <Progress value={pct} className="h-2 mt-2" />
       </CardHeader>
       <CardContent className="space-y-1.5">
         {items.map((item: LaunchChecklistItem) => (
