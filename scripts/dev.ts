@@ -8,12 +8,12 @@ const server = spawn(["bun", "--hot", "server/src/index.ts"], {
 
 const builder = spawn(
   ["bun", "build", "--watch", "client/src/main.tsx", "--outdir", "client/dist", "--sourcemap=inline"],
-  { stdout: "inherit", stderr: "inherit" }
+  { stdout: "inherit", stderr: "inherit", env: { ...process.env } }
 );
 
 const css = spawn(
   ["bunx", "tailwindcss", "--watch", "-i", "client/src/index.css", "-o", "client/dist/index.css"],
-  { cwd: "client", stdout: "inherit", stderr: "inherit" }
+  { cwd: "client", stdout: "inherit", stderr: "inherit", env: { ...process.env } }
 );
 
 process.on("SIGINT", () => {
@@ -22,5 +22,7 @@ process.on("SIGINT", () => {
   css.kill();
   process.exit(0);
 });
+
+process.on("SIGTERM", () => { server.kill(); builder.kill(); css.kill(); process.exit(0); });
 
 await Promise.all([server.exited, builder.exited, css.exited]);

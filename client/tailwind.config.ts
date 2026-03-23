@@ -20,11 +20,10 @@ const config: Config = {
         info: { DEFAULT: "hsl(var(--info))", foreground: "hsl(var(--info-foreground))" },
         purple: { DEFAULT: "hsl(var(--purple))", foreground: "hsl(var(--purple-foreground))" },
         teal: { DEFAULT: "hsl(var(--teal))", foreground: "hsl(var(--teal-foreground))" },
+        pink: { DEFAULT: "hsl(var(--pink))", foreground: "hsl(var(--pink-foreground))" },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
-      },
-      textColor: {
         "ink-2": "hsl(var(--ink-2))",
       },
       borderRadius: {
