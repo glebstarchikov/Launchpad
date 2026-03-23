@@ -12,7 +12,7 @@ const builder = spawn(
 );
 
 const css = spawn(
-  ["bunx", "tailwindcss", "--watch", "-i", "client/src/index.css", "-o", "client/dist/index.css"],
+  ["bunx", "tailwindcss", "--watch", "-i", "src/index.css", "-o", "dist/index.css"],
   { cwd: "client", stdout: "inherit", stderr: "inherit", env: { ...process.env } }
 );
 

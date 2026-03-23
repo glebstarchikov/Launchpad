@@ -1,0 +1,120 @@
+import { Database } from "bun:sqlite";
+
+const dbPath = process.env.DATABASE_PATH ?? "./launchpad.db";
+export const db = new Database(dbPath, { create: true });
+
+db.run("PRAGMA journal_mode = WAL");
+db.run("PRAGMA foreign_keys = ON");
+
+db.run(`CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS projects (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  url TEXT,
+  type TEXT NOT NULL DEFAULT 'for-profit',
+  stage TEXT NOT NULL DEFAULT 'idea',
+  tech_stack TEXT NOT NULL DEFAULT '[]',
+  last_deployed INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS project_links (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  url TEXT NOT NULL,
+  icon TEXT
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS project_countries (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  country_code TEXT NOT NULL,
+  country_name TEXT NOT NULL
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS legal_items (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  country_code TEXT NOT NULL,
+  item TEXT NOT NULL,
+  completed INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS launch_checklist (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  item TEXT NOT NULL,
+  completed INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS mrr_history (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  mrr INTEGER NOT NULL,
+  user_count INTEGER NOT NULL DEFAULT 0,
+  recorded_at INTEGER NOT NULL
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS goals (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  target_value REAL NOT NULL,
+  current_value REAL NOT NULL DEFAULT 0,
+  unit TEXT,
+  target_date INTEGER,
+  completed INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS ideas (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'raw',
+  promoted_to_project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS notes (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  is_build_log INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS tech_debt (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  note TEXT NOT NULL,
+  resolved INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS files (
+  id TEXT PRIMARY KEY,
+  project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  filename TEXT NOT NULL,
+  original_name TEXT NOT NULL,
+  mimetype TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  uploaded_at INTEGER NOT NULL
+)`);
