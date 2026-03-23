@@ -1,0 +1,12 @@
+{
+  "name": "launchpad-server",
+  "private": true,
+  "scripts": {
+    "dev": "bun --hot src/index.ts",
+    "start": "bun src/index.ts"
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "jose": "^5.9.0"
+  }
+}

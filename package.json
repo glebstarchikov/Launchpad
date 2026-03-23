@@ -1,0 +1,9 @@
+{
+  "name": "launchpad",
+  "private": true,
+  "workspaces": ["server", "client"],
+  "scripts": {
+    "dev": "bun scripts/dev.ts",
+    "build": "bun build client/src/main.tsx --outdir client/dist --minify && bunx tailwindcss -i client/src/index.css -o client/dist/index.css --minify"
+  }
+}
