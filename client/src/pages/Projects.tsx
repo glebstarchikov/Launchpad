@@ -7,6 +7,7 @@ import type { Project } from "@/lib/types";
 import type { ProjectStage, ProjectType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -221,11 +222,13 @@ export default function Projects() {
 
             <div className="space-y-1.5">
               <Label htmlFor="description">Description</Label>
-              <Input
+              <Textarea
                 id="description"
                 value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="What does it do?"
+                onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Brief description"
+                className="resize-none"
+                rows={3}
               />
             </div>
 

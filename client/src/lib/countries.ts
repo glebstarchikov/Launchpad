@@ -15,7 +15,10 @@ export const COUNTRIES: { code: string; name: string }[] = [
 ];
 
 export function countryFlag(code: string): string {
+  // EU has no ISO 3166-1 alpha-2 code — use the flag emoji directly
   if (code === "EU") return "🇪🇺";
+  // Convert each letter to its Unicode regional indicator symbol (A=0x1F1E6, B=0x1F1E7, ...)
+  // Two regional indicators together form a country flag emoji
   return [...code.toUpperCase()]
     .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
     .join("");

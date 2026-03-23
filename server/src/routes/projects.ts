@@ -12,6 +12,12 @@ const DEFAULT_CHECKLIST = [
   "Backup strategy in place",
 ];
 
+function ownsProject(projectId: string, userId: string): boolean {
+  return db.query<{ id: string }, [string, string]>(
+    "SELECT id FROM projects WHERE id = ? AND user_id = ?"
+  ).get(projectId, userId) !== null;
+}
+
 const router = new Hono<{ Variables: { userId: string } }>();
 router.use("*", requireAuth);
 
@@ -67,6 +73,7 @@ router.put("/:id", async (c) => {
      c.req.param("id"), c.get("userId")]
   );
   const project = db.query<Project, [string]>("SELECT * FROM projects WHERE id = ?").get(c.req.param("id"));
+  if (!project) return c.json({ error: "Not found" }, 404);
   return c.json(project);
 });
 
@@ -78,6 +85,9 @@ router.delete("/:id", (c) => {
 
 // GET /api/projects/:id/links
 router.get("/:id/links", (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
   const links = db.query<ProjectLink, [string]>(
     "SELECT * FROM project_links WHERE project_id = ?"
   ).all(c.req.param("id"));
@@ -86,6 +96,9 @@ router.get("/:id/links", (c) => {
 
 // POST /api/projects/:id/links
 router.post("/:id/links", async (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
   const { label, url, icon } = await c.req.json();
   if (!label || !url) return c.json({ error: "label and url required" }, 400);
   const id = crypto.randomUUID();
@@ -96,6 +109,9 @@ router.post("/:id/links", async (c) => {
 
 // DELETE /api/projects/:id/links/:linkId
 router.delete("/:id/links/:linkId", (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
   db.run("DELETE FROM project_links WHERE id = ? AND project_id = ?",
     [c.req.param("linkId"), c.req.param("id")]);
   return c.json({ ok: true });
@@ -103,6 +119,9 @@ router.delete("/:id/links/:linkId", (c) => {
 
 // GET /api/projects/:id/launch-checklist
 router.get("/:id/launch-checklist", (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
   return c.json(
     db.query<LaunchChecklistItem, [string]>(
       "SELECT * FROM launch_checklist WHERE project_id = ? ORDER BY created_at ASC"
@@ -112,6 +131,9 @@ router.get("/:id/launch-checklist", (c) => {
 
 // POST /api/projects/:id/launch-checklist
 router.post("/:id/launch-checklist", async (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
   const { item } = await c.req.json();
   if (!item) return c.json({ error: "item required" }, 400);
   const id = crypto.randomUUID();
@@ -126,6 +148,9 @@ router.post("/:id/launch-checklist", async (c) => {
 
 // PUT /api/projects/:id/launch-checklist/:itemId
 router.put("/:id/launch-checklist/:itemId", async (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
   const { completed } = await c.req.json();
   db.run("UPDATE launch_checklist SET completed = ? WHERE id = ? AND project_id = ?",
     [completed ? 1 : 0, c.req.param("itemId"), c.req.param("id")]);
@@ -134,6 +159,9 @@ router.put("/:id/launch-checklist/:itemId", async (c) => {
 
 // DELETE /api/projects/:id/launch-checklist/:itemId
 router.delete("/:id/launch-checklist/:itemId", (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
   db.run("DELETE FROM launch_checklist WHERE id = ? AND project_id = ?",
     [c.req.param("itemId"), c.req.param("id")]);
   return c.json({ ok: true });
