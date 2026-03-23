@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { api } from "@/lib/api";
 import Login from "@/pages/Login";
+import Layout from "@/components/Layout";
+import Projects from "@/pages/Projects";
 
 export default function App() {
   const { data: user, isLoading } = useQuery({
@@ -24,7 +26,13 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Navigate to="/" replace />} />
-      <Route path="*" element={<div className="p-8 text-foreground">Launchpad — authenticated as {user.name}</div>} />
+      <Route element={<Layout />}>
+        <Route path="/" element={<div className="p-8 text-foreground font-semibold">Dashboard — coming soon</div>} />
+        <Route path="/projects" element={<Projects />} />
+        <Route path="/ideas" element={<div className="p-8 text-muted-foreground">Ideas — coming soon</div>} />
+        <Route path="/files" element={<div className="p-8 text-muted-foreground">Files — coming soon</div>} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

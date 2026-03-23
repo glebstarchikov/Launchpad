@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import authRouter from "./routes/auth.ts";
+import projectsRouter from "./routes/projects.ts";
 
 // Initialize DB (runs all CREATE TABLE IF NOT EXISTS on import)
 import "./db/index.ts";
@@ -13,6 +14,7 @@ const app = new Hono();
 
 // API routes
 app.route("/api/auth", authRouter);
+app.route("/api/projects", projectsRouter);
 
 // Static files from client/dist
 app.use("/*", serveStatic({ root: "./client/dist" }));
