@@ -118,3 +118,16 @@ db.run(`CREATE TABLE IF NOT EXISTS files (
   size INTEGER NOT NULL,
   uploaded_at INTEGER NOT NULL
 )`);
+
+db.run("CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)");
+db.run("CREATE INDEX IF NOT EXISTS idx_project_links_project_id ON project_links(project_id)");
+db.run("CREATE INDEX IF NOT EXISTS idx_project_countries_project_id ON project_countries(project_id)");
+db.run("CREATE INDEX IF NOT EXISTS idx_legal_items_project_id ON legal_items(project_id)");
+db.run("CREATE INDEX IF NOT EXISTS idx_launch_checklist_project_id ON launch_checklist(project_id)");
+db.run("CREATE INDEX IF NOT EXISTS idx_mrr_history_project_id ON mrr_history(project_id)");
+db.run("CREATE INDEX IF NOT EXISTS idx_goals_project_id ON goals(project_id)");
+db.run("CREATE INDEX IF NOT EXISTS idx_ideas_user_id ON ideas(user_id)");
+db.run("CREATE INDEX IF NOT EXISTS idx_notes_project_id ON notes(project_id)");
+db.run("CREATE INDEX IF NOT EXISTS idx_tech_debt_project_id ON tech_debt(project_id)");
+db.run("CREATE INDEX IF NOT EXISTS idx_files_project_id ON files(project_id)");
+db.run("CREATE INDEX IF NOT EXISTS idx_files_user_id ON files(user_id)");

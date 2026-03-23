@@ -3,10 +3,12 @@ import { SignJWT } from "jose";
 import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
 import type { User } from "../types/index.ts";
+import { jwtSecret } from "../lib/config.ts";
 
 const router = new Hono<{ Variables: { userId: string } }>();
-const secret = new TextEncoder().encode(process.env.JWT_SECRET ?? "dev-secret-change-me");
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
+const isProduction = process.env.NODE_ENV === "production";
+const securePart = isProduction ? "; Secure" : "";
 
 router.post("/register", async (c) => {
   const { name, email, password } = await c.req.json();
@@ -26,9 +28,9 @@ router.post("/register", async (c) => {
   const token = await new SignJWT({ sub: id })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("30d")
-    .sign(secret);
+    .sign(jwtSecret);
 
-  c.header("Set-Cookie", `token=${token}; HttpOnly; SameSite=Lax; Max-Age=${THIRTY_DAYS}; Path=/`);
+  c.header("Set-Cookie", `token=${token}; HttpOnly; SameSite=Lax; Max-Age=${THIRTY_DAYS}; Path=/${securePart}`);
   return c.json({ id, name, email });
 });
 
@@ -43,9 +45,9 @@ router.post("/login", async (c) => {
   const token = await new SignJWT({ sub: user.id })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("30d")
-    .sign(secret);
+    .sign(jwtSecret);
 
-  c.header("Set-Cookie", `token=${token}; HttpOnly; SameSite=Lax; Max-Age=${THIRTY_DAYS}; Path=/`);
+  c.header("Set-Cookie", `token=${token}; HttpOnly; SameSite=Lax; Max-Age=${THIRTY_DAYS}; Path=/${securePart}`);
   return c.json({ id: user.id, name: user.name, email: user.email });
 });
 

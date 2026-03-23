@@ -5,6 +5,10 @@ import authRouter from "./routes/auth.ts";
 // Initialize DB (runs all CREATE TABLE IF NOT EXISTS on import)
 import "./db/index.ts";
 
+if (!process.env.JWT_SECRET) {
+  console.warn("WARNING: JWT_SECRET is not set. Using insecure default. Set JWT_SECRET before deploying.");
+}
+
 const app = new Hono();
 
 // API routes

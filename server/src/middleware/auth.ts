@@ -1,7 +1,6 @@
 import { createMiddleware } from "hono/factory";
 import { jwtVerify } from "jose";
-
-const secret = new TextEncoder().encode(process.env.JWT_SECRET ?? "dev-secret-change-me");
+import { jwtSecret } from "../lib/config.ts";
 
 export const requireAuth = createMiddleware<{ Variables: { userId: string } }>(
   async (c, next) => {
@@ -10,7 +9,7 @@ export const requireAuth = createMiddleware<{ Variables: { userId: string } }>(
     if (!match) return c.json({ error: "Unauthorized" }, 401);
 
     try {
-      const { payload } = await jwtVerify(match[1], secret);
+      const { payload } = await jwtVerify(match[1], jwtSecret);
       if (typeof payload.sub !== "string") throw new Error("bad sub");
       c.set("userId", payload.sub);
       await next();
