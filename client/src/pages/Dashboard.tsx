@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { StageBadge, TypeBadge, Empty, fmt, STAGE_META } from "@/components/app-ui";
 import { api } from "@/lib/api";
-import type { Project, Idea, ProjectStage, DashboardData } from "@/lib/types";
+import type { ProjectStage } from "@/lib/types";
 
 interface StatCardProps {
   label: string;
@@ -35,25 +35,34 @@ const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["dashboard"],
     queryFn: api.dashboard.get,
   });
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <div className="p-8">
         <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
+  if (isError || !data) {
+    return (
+      <div className="p-8">
+        <p className="text-destructive text-sm">Failed to load dashboard.</p>
+      </div>
+    );
+  }
 
-  const total = (data as DashboardData).stageDist.reduce(
+  const { mrr, projectCount, ideaCount, legalPending, stageDist, recentProjects, recentIdeas } = data;
+
+  const total = stageDist.reduce(
     (s: number, x: { stage: string; count: number }) => s + x.count,
     0
   ) || 1;
   const countByStage = Object.fromEntries(
-    (data as DashboardData).stageDist.map((x: { stage: string; count: number }) => [x.stage, x.count])
+    stageDist.map((x: { stage: string; count: number }) => [x.stage, x.count])
   );
 
   return (
@@ -65,25 +74,25 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
         <StatCard
           label="Total MRR"
-          value={fmt((data as DashboardData).mrr)}
+          value={fmt(mrr)}
           colour="text-success"
           icon={<TrendingUp size={16} />}
         />
         <StatCard
           label="Projects"
-          value={(data as DashboardData).projectCount.toString()}
+          value={projectCount.toString()}
           colour="text-foreground"
           icon={<FolderKanban size={16} />}
         />
         <StatCard
           label="Idea Inbox"
-          value={(data as DashboardData).ideaCount.toString()}
+          value={ideaCount.toString()}
           colour="text-warning"
           icon={<Lightbulb size={16} />}
         />
         <StatCard
           label="Legal Pending"
-          value={(data as DashboardData).legalPending.toString()}
+          value={legalPending.toString()}
           colour="text-destructive"
           icon={<AlertTriangle size={16} />}
         />
@@ -130,16 +139,16 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <CardTitle>Recent Projects</CardTitle>
               <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                {(data as DashboardData).projectCount}
+                {projectCount}
               </span>
             </div>
           </CardHeader>
           <CardContent>
-            {(data as DashboardData).recentProjects.length === 0 ? (
+            {recentProjects.length === 0 ? (
               <Empty icon={<FolderKanban size={24} />} title="No projects yet" />
             ) : (
               <div className="space-y-0.5">
-                {(data as DashboardData).recentProjects.map((project: Project) => (
+                {recentProjects.map((project) => (
                   <button
                     key={project.id}
                     onClick={() => navigate(`/projects/${project.id}`)}
@@ -163,12 +172,12 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <CardTitle>Idea Inbox</CardTitle>
             <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-              {(data as DashboardData).ideaCount}
+              {ideaCount}
             </span>
           </div>
         </CardHeader>
         <CardContent>
-          {(data as DashboardData).recentIdeas.length === 0 ? (
+          {recentIdeas.length === 0 ? (
             <Empty
               icon={<Lightbulb size={24} />}
               title="No ideas yet"
@@ -176,7 +185,7 @@ export default function Dashboard() {
             />
           ) : (
             <div className="divide-y divide-border">
-              {(data as DashboardData).recentIdeas.map((idea: Idea) => (
+              {recentIdeas.map((idea) => (
                 <div key={idea.id} className="py-2.5 px-1">
                   <p className="text-sm font-medium">{idea.title}</p>
                   {idea.body && (

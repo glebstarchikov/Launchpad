@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
+import type { Project, Idea } from "../types/index.ts";
 
 const router = new Hono<{ Variables: { userId: string } }>();
 router.use("*", requireAuth);
@@ -38,12 +39,12 @@ router.get("/dashboard", (c) => {
     "SELECT stage, COUNT(*) as count FROM projects WHERE user_id = ? GROUP BY stage"
   ).all(userId);
 
-  const recentProjects = db.query(
-    "SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC LIMIT 5"
+  const recentProjects = db.query<Pick<Project, "id"|"name"|"stage"|"type"|"url"|"updated_at">, [string]>(
+    "SELECT id, name, stage, type, url, updated_at FROM projects WHERE user_id = ? ORDER BY updated_at DESC LIMIT 5"
   ).all(userId);
 
-  const recentIdeas = db.query(
-    "SELECT * FROM ideas WHERE user_id = ? AND status = 'raw' ORDER BY created_at DESC LIMIT 5"
+  const recentIdeas = db.query<Pick<Idea, "id"|"title"|"body"|"created_at">, [string]>(
+    "SELECT id, title, body, created_at FROM ideas WHERE user_id = ? AND status = 'raw' ORDER BY created_at DESC LIMIT 5"
   ).all(userId);
 
   return c.json({
@@ -60,6 +61,14 @@ router.get("/dashboard", (c) => {
 router.post("/ping", async (c) => {
   const { url } = await c.req.json();
   if (!url) return c.json({ error: "url required" }, 400);
+  try {
+    const parsed = new URL(url as string);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return c.json({ error: "Only http/https URLs are supported" }, 400);
+    }
+  } catch {
+    return c.json({ error: "Invalid URL" }, 400);
+  }
   const start = Date.now();
   try {
     const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(8000) });

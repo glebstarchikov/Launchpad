@@ -120,6 +120,6 @@ export interface DashboardData {
   ideaCount: number;
   legalPending: number;
   stageDist: { stage: ProjectStage; count: number }[];
-  recentProjects: Project[];
-  recentIdeas: Idea[];
+  recentProjects: Pick<Project, "id" | "name" | "stage" | "type" | "url" | "updated_at">[];
+  recentIdeas: Pick<Idea, "id" | "title" | "body" | "created_at">[];
 }
