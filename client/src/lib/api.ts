@@ -1,4 +1,4 @@
-import type { User, Project, ProjectLink, LaunchChecklistItem, ProjectStage, ProjectType } from "./types";
+import type { User, Project, ProjectLink, LaunchChecklistItem, ProjectStage, ProjectType, DashboardData } from "./types";
 
 const BASE = "/api";
 
@@ -24,6 +24,11 @@ export const api = {
     logout: () => req<{ ok: true }>("/auth/logout", { method: "POST" }),
     me: () => req<User>("/auth/me"),
   },
+  dashboard: {
+    get: () => req<DashboardData>("/dashboard"),
+  },
+  ping: (url: string) =>
+    req<{ status: "up" | "down"; latencyMs: number }>("/ping", { method: "POST", body: JSON.stringify({ url }) }),
   projects: {
     list: () => req<Project[]>("/projects"),
     get: (id: string) => req<Project>(`/projects/${id}`),
