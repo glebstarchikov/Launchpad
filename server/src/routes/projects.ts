@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
-import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem } from "../types/index.ts";
+import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal } from "../types/index.ts";
 
 const DEFAULT_CHECKLIST = [
   "Custom domain connected", "SSL certificate active", "Privacy Policy published",
@@ -210,6 +210,91 @@ router.delete("/:id/tech-debt/:debtId", (c) => {
   }
   db.run("DELETE FROM tech_debt WHERE id = ? AND project_id = ?",
     [c.req.param("debtId"), c.req.param("id")]);
+  return c.json({ ok: true });
+});
+
+// GET /api/projects/:id/mrr
+router.get("/:id/mrr", (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  return c.json(
+    db.query<MrrEntry, [string]>(
+      "SELECT * FROM mrr_history WHERE project_id = ? ORDER BY recorded_at ASC"
+    ).all(c.req.param("id"))
+  );
+});
+
+// POST /api/projects/:id/mrr
+router.post("/:id/mrr", async (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  const { mrr, user_count } = await c.req.json();
+  if (typeof mrr !== "number") return c.json({ error: "mrr (number) required" }, 400);
+  const id = crypto.randomUUID();
+  const now = Date.now();
+  db.run(
+    "INSERT INTO mrr_history (id, project_id, mrr, user_count, recorded_at) VALUES (?, ?, ?, ?, ?)",
+    [id, c.req.param("id"), mrr, user_count ?? 0, now]
+  );
+  return c.json(
+    db.query<MrrEntry, [string]>("SELECT * FROM mrr_history WHERE id = ?").get(id),
+    201
+  );
+});
+
+// GET /api/projects/:id/goals
+router.get("/:id/goals", (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  return c.json(
+    db.query<Goal, [string]>(
+      "SELECT * FROM goals WHERE project_id = ? ORDER BY created_at ASC"
+    ).all(c.req.param("id"))
+  );
+});
+
+// POST /api/projects/:id/goals
+router.post("/:id/goals", async (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  const { description, target_value, current_value, unit, target_date } = await c.req.json();
+  if (!description || target_value == null) return c.json({ error: "description and target_value required" }, 400);
+  const id = crypto.randomUUID();
+  db.run(
+    "INSERT INTO goals (id, project_id, description, target_value, current_value, unit, target_date, completed, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)",
+    [id, c.req.param("id"), description, target_value, current_value ?? 0, unit ?? null, target_date ?? null, Date.now()]
+  );
+  return c.json(
+    db.query<Goal, [string]>("SELECT * FROM goals WHERE id = ?").get(id),
+    201
+  );
+});
+
+// PUT /api/projects/:id/goals/:goalId
+router.put("/:id/goals/:goalId", async (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  const { description, target_value, current_value, unit, target_date, completed } = await c.req.json();
+  db.run(
+    "UPDATE goals SET description=?, target_value=?, current_value=?, unit=?, target_date=?, completed=? WHERE id=? AND project_id=?",
+    [description, target_value, current_value, unit ?? null, target_date ?? null,
+     completed ? 1 : 0, c.req.param("goalId"), c.req.param("id")]
+  );
+  return c.json({ ok: true });
+});
+
+// DELETE /api/projects/:id/goals/:goalId
+router.delete("/:id/goals/:goalId", (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  db.run("DELETE FROM goals WHERE id = ? AND project_id = ?",
+    [c.req.param("goalId"), c.req.param("id")]);
   return c.json({ ok: true });
 });
 

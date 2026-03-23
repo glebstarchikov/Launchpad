@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronRight, ExternalLink, Pencil, Plus, RefreshCw, Trash2, X, Check,
 } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,10 +17,10 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { StageBadge, TypeBadge, TagInput, PingDot } from "@/components/app-ui";
+import { StageBadge, TypeBadge, TagInput, PingDot, fmt } from "@/components/app-ui";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, ProjectStage, ProjectType } from "@/lib/types";
+import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType } from "@/lib/types";
 
 const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
 const TYPES: ProjectType[] = ["for-profit", "open-source"];
@@ -114,7 +115,7 @@ export default function ProjectDetail() {
           </TabsContent>
           {project.type === "for-profit" && (
             <TabsContent value="revenue" className="mt-0">
-              <div className="text-muted-foreground p-4">Revenue tab — coming in Task 7</div>
+              <RevenueTab project={project} id={id!} queryClient={queryClient} />
             </TabsContent>
           )}
           <TabsContent value="compliance" className="mt-0">
@@ -263,10 +264,271 @@ function HealthTab({ project, id, queryClient }: { project: Project; id: string;
           ))}
           <form onSubmit={handleAddDebt} className="flex gap-2 mt-3">
             <Input value={debtNote} onChange={e => setDebtNote(e.target.value)} placeholder="Add tech debt item..." />
-            <Button type="submit" variant="secondary" size="sm">Add</Button>
+            <Button type="submit" variant="secondary" size="sm" disabled={!debtNote.trim() || addDebt.isPending}>Add</Button>
           </form>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function RevenueTab({ project: _project, id, queryClient }: { project: Project; id: string; queryClient: ReturnType<typeof useQueryClient> }) {
+  const [mrrInput, setMrrInput] = useState("");
+  const [usersInput, setUsersInput] = useState("");
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
+  const [goalForm, setGoalForm] = useState({ description: "", target_value: "", current_value: "0", unit: "", target_date: "" });
+
+  const { data: mrrHistory = [] } = useQuery({
+    queryKey: ["mrr", id],
+    queryFn: () => api.projects.mrr.list(id),
+  });
+
+  const { data: goals = [] } = useQuery({
+    queryKey: ["goals", id],
+    queryFn: () => api.projects.goals.list(id),
+  });
+
+  const addMrr = useMutation({
+    mutationFn: (data: { mrr: number; user_count: number }) => api.projects.mrr.create(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mrr", id] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setMrrInput("");
+      setUsersInput("");
+    },
+  });
+
+  const addGoal = useMutation({
+    mutationFn: (data: Partial<Goal>) => api.projects.goals.create(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["goals", id] });
+      setGoalDialogOpen(false);
+      setGoalForm({ description: "", target_value: "", current_value: "0", unit: "", target_date: "" });
+    },
+  });
+
+  const updateGoal = useMutation({
+    mutationFn: ({ goalId, data }: { goalId: string; data: Partial<Goal> }) =>
+      api.projects.goals.update(id, goalId, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["goals", id] }),
+  });
+
+  const deleteGoal = useMutation({
+    mutationFn: (goalId: string) => api.projects.goals.delete(id, goalId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["goals", id] }),
+  });
+
+  const latestMrr = mrrHistory.at(-1)?.mrr ?? 0;
+  const latestUsers = mrrHistory.at(-1)?.user_count ?? 0;
+  const arr = latestMrr * 12;
+
+  const chartData = mrrHistory.map((e: MrrEntry) => ({
+    date: new Date(e.recorded_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    mrr: e.mrr,
+  }));
+
+  const handleLogMrr = (e: React.FormEvent) => {
+    e.preventDefault();
+    const mrr = parseFloat(mrrInput);
+    const users = parseInt(usersInput || "0", 10);
+    if (isNaN(mrr)) return;
+    addMrr.mutate({ mrr, user_count: users });
+  };
+
+  const handleAddGoal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!goalForm.description || !goalForm.target_value) return;
+    addGoal.mutate({
+      description: goalForm.description,
+      target_value: parseFloat(goalForm.target_value),
+      current_value: parseFloat(goalForm.current_value || "0"),
+      unit: goalForm.unit || null,
+      target_date: goalForm.target_date ? new Date(goalForm.target_date).getTime() : null,
+    });
+  };
+
+  const handleToggleGoal = (goal: Goal) => {
+    updateGoal.mutate({
+      goalId: goal.id,
+      data: {
+        description: goal.description,
+        target_value: goal.target_value,
+        current_value: goal.current_value,
+        unit: goal.unit,
+        target_date: goal.target_date,
+        completed: goal.completed === 1 ? 0 : 1,
+      },
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Stat cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">MRR</p>
+            <p className="font-mono text-3xl font-medium text-success mt-2">{fmt(latestMrr)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Users</p>
+            <p className="font-mono text-3xl font-medium text-foreground mt-2">{latestUsers.toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">ARR</p>
+            <p className="font-mono text-3xl font-medium text-info mt-2">{fmt(arr)}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* MRR Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">MRR over time</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {chartData.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">No MRR data yet. Log your first entry below.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="mrrGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(152 69% 50%)" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="hsl(152 69% 50%)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(0 0% 33.3%)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "hsl(0 0% 33.3%)" }} axisLine={false} tickLine={false}
+                  tickFormatter={(v) => `$${v}`} />
+                <Tooltip
+                  contentStyle={{ background: "hsl(0 0% 5.9%)", border: "1px solid hsl(0 0% 10%)", borderRadius: "6px" }}
+                  labelStyle={{ color: "hsl(0 0% 92.5%)" }}
+                  formatter={(v: number) => [fmt(v), "MRR"]}
+                />
+                <Area type="monotone" dataKey="mrr" stroke="hsl(152 69% 50%)" strokeWidth={2}
+                  fill="url(#mrrGrad)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Log Entry */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Log Entry</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleLogMrr} className="flex gap-3">
+            <div className="flex-1">
+              <Label className="text-xs text-muted-foreground">MRR ($)</Label>
+              <Input type="number" step="0.01" value={mrrInput} onChange={(e) => setMrrInput(e.target.value)} placeholder="0.00" className="mt-1" />
+            </div>
+            <div className="flex-1">
+              <Label className="text-xs text-muted-foreground">Users</Label>
+              <Input type="number" value={usersInput} onChange={(e) => setUsersInput(e.target.value)} placeholder="0" className="mt-1" />
+            </div>
+            <Button type="submit" className="self-end" disabled={!mrrInput || addMrr.isPending}>Log</Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Goals */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium">Goals</CardTitle>
+            <Button variant="secondary" size="sm" className="gap-1.5" onClick={() => setGoalDialogOpen(true)}>
+              <Plus size={13} />
+              Add Goal
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {goals.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">No goals yet.</p>
+          )}
+          {goals.map((goal: Goal) => {
+            const pct = goal.target_value > 0 ? Math.min(100, (goal.current_value / goal.target_value) * 100) : 0;
+            return (
+              <div key={goal.id} className={cn(
+                "flex items-start gap-3 p-3 rounded border",
+                goal.completed === 1 ? "border-success/20" : "border-border"
+              )}>
+                <Checkbox
+                  checked={goal.completed === 1}
+                  onCheckedChange={() => handleToggleGoal(goal)}
+                  className="mt-0.5"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className={cn("text-sm font-medium", goal.completed === 1 && "line-through text-muted-foreground")}>
+                    {goal.description}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Progress value={pct} className="h-1.5 flex-1" />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {goal.current_value}/{goal.target_value}{goal.unit ? ` ${goal.unit}` : ""}
+                    </span>
+                  </div>
+                  {goal.target_date && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Target: {new Date(goal.target_date).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
+                  onClick={() => deleteGoal.mutate(goal.id)}>
+                  <Trash2 size={12} />
+                </Button>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Add Goal Dialog */}
+      <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Goal</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddGoal} className="space-y-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Description</Label>
+              <Input value={goalForm.description} onChange={(e) => setGoalForm(f => ({ ...f, description: e.target.value }))} placeholder="e.g. Reach 100 paying users" className="mt-1" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Target Value</Label>
+                <Input type="number" value={goalForm.target_value} onChange={(e) => setGoalForm(f => ({ ...f, target_value: e.target.value }))} placeholder="100" className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Current Value</Label>
+                <Input type="number" value={goalForm.current_value} onChange={(e) => setGoalForm(f => ({ ...f, current_value: e.target.value }))} placeholder="0" className="mt-1" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Unit (optional)</Label>
+                <Input value={goalForm.unit} onChange={(e) => setGoalForm(f => ({ ...f, unit: e.target.value }))} placeholder="users, $, etc." className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Target Date (optional)</Label>
+                <Input type="date" value={goalForm.target_date} onChange={(e) => setGoalForm(f => ({ ...f, target_date: e.target.value }))} className="mt-1" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setGoalDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={!goalForm.description || !goalForm.target_value || addGoal.isPending}>Add Goal</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

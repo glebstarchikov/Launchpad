@@ -1,4 +1,4 @@
-import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, ProjectStage, ProjectType, DashboardData } from "./types";
+import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData } from "./types";
 
 const BASE = "/api";
 
@@ -61,6 +61,20 @@ export const api = {
         req<{ ok: true }>(`/projects/${id}/tech-debt/${debtId}`, { method: "PUT", body: JSON.stringify({ resolved }) }),
       delete: (id: string, debtId: string) =>
         req<{ ok: true }>(`/projects/${id}/tech-debt/${debtId}`, { method: "DELETE" }),
+    },
+    mrr: {
+      list: (id: string) => req<MrrEntry[]>(`/projects/${id}/mrr`),
+      create: (id: string, data: { mrr: number; user_count: number }) =>
+        req<MrrEntry>(`/projects/${id}/mrr`, { method: "POST", body: JSON.stringify(data) }),
+    },
+    goals: {
+      list: (id: string) => req<Goal[]>(`/projects/${id}/goals`),
+      create: (id: string, data: Partial<Goal>) =>
+        req<Goal>(`/projects/${id}/goals`, { method: "POST", body: JSON.stringify(data) }),
+      update: (id: string, goalId: string, data: Partial<Goal>) =>
+        req<{ ok: true }>(`/projects/${id}/goals/${goalId}`, { method: "PUT", body: JSON.stringify(data) }),
+      delete: (id: string, goalId: string) =>
+        req<{ ok: true }>(`/projects/${id}/goals/${goalId}`, { method: "DELETE" }),
     },
   },
 };
