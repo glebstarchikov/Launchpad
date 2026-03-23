@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { StageBadge, TypeBadge, TagInput, PingDot, fmt } from "@/components/app-ui";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType } from "@/lib/types";
+import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, ProjectCountry, LegalItem } from "@/lib/types";
 
 const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
 const TYPES: ProjectType[] = ["for-profit", "open-source"];
@@ -119,7 +119,7 @@ export default function ProjectDetail() {
             </TabsContent>
           )}
           <TabsContent value="compliance" className="mt-0">
-            <div className="text-muted-foreground p-4">Compliance tab — coming in Task 8</div>
+            <ComplianceTab id={id!} queryClient={queryClient} />
           </TabsContent>
           <TabsContent value="buildlog" className="mt-0">
             <div className="text-muted-foreground p-4">Build Log tab — coming in Task 9</div>
@@ -529,6 +529,259 @@ function RevenueTab({ project: _project, id, queryClient }: { project: Project; 
           </form>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+const COUNTRIES = [
+  { code: "EU", name: "European Union" },
+  { code: "US", name: "United States" },
+  { code: "UK", name: "United Kingdom" },
+  { code: "CA", name: "Canada" },
+  { code: "AU", name: "Australia" },
+  { code: "DE", name: "Germany" },
+  { code: "FR", name: "France" },
+  { code: "NL", name: "Netherlands" },
+  { code: "IN", name: "India" },
+  { code: "BR", name: "Brazil" },
+  { code: "JP", name: "Japan" },
+  { code: "SG", name: "Singapore" },
+  { code: "RU", name: "Russia" },
+];
+
+function countryFlag(code: string): string {
+  const FLAGS: Record<string, string> = {
+    EU: "\u{1F1EA}\u{1F1FA}", US: "\u{1F1FA}\u{1F1F8}", UK: "\u{1F1EC}\u{1F1E7}", CA: "\u{1F1E8}\u{1F1E6}", AU: "\u{1F1E6}\u{1F1FA}",
+    DE: "\u{1F1E9}\u{1F1EA}", FR: "\u{1F1EB}\u{1F1F7}", NL: "\u{1F1F3}\u{1F1F1}", IN: "\u{1F1EE}\u{1F1F3}", BR: "\u{1F1E7}\u{1F1F7}",
+    JP: "\u{1F1EF}\u{1F1F5}", SG: "\u{1F1F8}\u{1F1EC}", RU: "\u{1F1F7}\u{1F1FA}",
+  };
+  return FLAGS[code] ?? "\u{1F3F3}\u{FE0F}";
+}
+
+function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnType<typeof useQueryClient> }) {
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [customItemInputs, setCustomItemInputs] = useState<Record<string, string>>({});
+  const [showCustomForm, setShowCustomForm] = useState<Record<string, boolean>>({});
+
+  const { data: countries = [] } = useQuery({
+    queryKey: ["countries", id],
+    queryFn: () => api.projects.countries.list(id),
+  });
+
+  const { data: legalItems = [] } = useQuery({
+    queryKey: ["legal", id],
+    queryFn: () => api.projects.legal.list(id),
+  });
+
+  const addCountry = useMutation({
+    mutationFn: (data: { country_code: string; country_name: string }) =>
+      api.projects.countries.add(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["countries", id] });
+      queryClient.invalidateQueries({ queryKey: ["legal", id] });
+      setSelectedCountry("");
+    },
+  });
+
+  const removeCountry = useMutation({
+    mutationFn: (cId: string) => api.projects.countries.remove(id, cId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["countries", id] });
+      queryClient.invalidateQueries({ queryKey: ["legal", id] });
+    },
+  });
+
+  const toggleLegal = useMutation({
+    mutationFn: ({ itemId, completed }: { itemId: string; completed: boolean }) =>
+      api.projects.legal.update(id, itemId, completed),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["legal", id] }),
+  });
+
+  const addLegalItem = useMutation({
+    mutationFn: (data: { country_code: string; item: string }) =>
+      api.projects.legal.create(id, data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["legal", id] });
+      setCustomItemInputs(prev => ({ ...prev, [variables.country_code]: "" }));
+      setShowCustomForm(prev => ({ ...prev, [variables.country_code]: false }));
+    },
+  });
+
+  const deleteLegal = useMutation({
+    mutationFn: (itemId: string) => api.projects.legal.delete(id, itemId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["legal", id] }),
+  });
+
+  const activeCodes = countries.map((c: ProjectCountry) => c.country_code);
+  const availableCountries = COUNTRIES.filter(c => !activeCodes.includes(c.code));
+
+  const handleAddCountry = () => {
+    const country = COUNTRIES.find(c => c.code === selectedCountry);
+    if (country) addCountry.mutate({ country_code: country.code, country_name: country.name });
+  };
+
+  // Group legal items by country_code
+  const itemsByCountry: Record<string, LegalItem[]> = {};
+  for (const item of legalItems) {
+    if (!itemsByCountry[item.country_code]) itemsByCountry[item.country_code] = [];
+    itemsByCountry[item.country_code].push(item);
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Add country card */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Add Country / Region</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Select a country..." />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCountries.map(c => (
+                  <SelectItem key={c.code} value={c.code}>
+                    {countryFlag(c.code)} {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="secondary"
+              disabled={!selectedCountry || addCountry.isPending}
+              onClick={handleAddCountry}
+            >
+              <Plus size={13} className="mr-1.5" />
+              Add
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Active country chips */}
+      {countries.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {countries.map((c: ProjectCountry) => (
+            <Badge key={c.id} variant="secondary" className="gap-1.5 pl-2 pr-1 py-1">
+              {countryFlag(c.country_code)} {c.country_name}
+              <button
+                onClick={() => removeCountry.mutate(c.id)}
+                className="ml-0.5 rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive transition-colors"
+              >
+                <X size={12} />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {/* Per-country legal cards */}
+      {countries.map((c: ProjectCountry) => {
+        const items = itemsByCountry[c.country_code] ?? [];
+        const done = items.filter(i => i.completed === 1).length;
+        const total = items.length;
+        const pct = total > 0 ? (done / total) * 100 : 0;
+
+        return (
+          <Card key={c.id}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">
+                  {countryFlag(c.country_code)} {c.country_name}
+                </CardTitle>
+                <span className="text-xs text-muted-foreground">{done}/{total}</span>
+              </div>
+              <Progress value={pct} className="h-2 mt-2" />
+            </CardHeader>
+            <CardContent className="space-y-1.5">
+              {items.map((item: LegalItem) => (
+                <div key={item.id} className="flex items-center gap-2 group">
+                  <Checkbox
+                    id={`legal-${item.id}`}
+                    checked={item.completed === 1}
+                    onCheckedChange={(v) => toggleLegal.mutate({ itemId: item.id, completed: !!v })}
+                  />
+                  <label
+                    htmlFor={`legal-${item.id}`}
+                    className={cn(
+                      "text-sm flex-1 cursor-pointer",
+                      item.completed === 1 && "line-through text-muted-foreground"
+                    )}
+                  >
+                    {item.item}
+                  </label>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:text-destructive"
+                    onClick={() => deleteLegal.mutate(item.id)}
+                  >
+                    <Trash2 size={11} />
+                  </Button>
+                </div>
+              ))}
+
+              {/* Add custom item */}
+              {showCustomForm[c.country_code] ? (
+                <div className="flex gap-2 pt-2">
+                  <Input
+                    value={customItemInputs[c.country_code] ?? ""}
+                    onChange={e => setCustomItemInputs(prev => ({ ...prev, [c.country_code]: e.target.value }))}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && (customItemInputs[c.country_code] ?? "").trim()) {
+                        addLegalItem.mutate({ country_code: c.country_code, item: customItemInputs[c.country_code].trim() });
+                      }
+                      if (e.key === "Escape") {
+                        setShowCustomForm(prev => ({ ...prev, [c.country_code]: false }));
+                        setCustomItemInputs(prev => ({ ...prev, [c.country_code]: "" }));
+                      }
+                    }}
+                    placeholder="Custom legal item..."
+                    className="text-sm"
+                    autoFocus
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={!(customItemInputs[c.country_code] ?? "").trim() || addLegalItem.isPending}
+                    onClick={() => addLegalItem.mutate({ country_code: c.country_code, item: customItemInputs[c.country_code].trim() })}
+                  >
+                    Add
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowCustomForm(prev => ({ ...prev, [c.country_code]: false }));
+                      setCustomItemInputs(prev => ({ ...prev, [c.country_code]: "" }));
+                    }}
+                  >
+                    <X size={13} />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground mt-1 gap-1"
+                  onClick={() => setShowCustomForm(prev => ({ ...prev, [c.country_code]: true }))}
+                >
+                  <Plus size={12} />
+                  Add custom item
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+
+      {countries.length === 0 && (
+        <div className="text-sm text-muted-foreground text-center py-8">
+          No countries added yet. Select a country above to get started with compliance tracking.
+        </div>
+      )}
     </div>
   );
 }

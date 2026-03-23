@@ -1,4 +1,4 @@
-import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData } from "./types";
+import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem } from "./types";
 
 const BASE = "/api";
 
@@ -75,6 +75,22 @@ export const api = {
         req<{ ok: true }>(`/projects/${id}/goals/${goalId}`, { method: "PUT", body: JSON.stringify(data) }),
       delete: (id: string, goalId: string) =>
         req<{ ok: true }>(`/projects/${id}/goals/${goalId}`, { method: "DELETE" }),
+    },
+    countries: {
+      list: (id: string) => req<ProjectCountry[]>(`/projects/${id}/countries`),
+      add: (id: string, data: { country_code: string; country_name: string }) =>
+        req<ProjectCountry>(`/projects/${id}/countries`, { method: "POST", body: JSON.stringify(data) }),
+      remove: (id: string, cId: string) =>
+        req<{ ok: true }>(`/projects/${id}/countries/${cId}`, { method: "DELETE" }),
+    },
+    legal: {
+      list: (id: string) => req<LegalItem[]>(`/projects/${id}/legal`),
+      create: (id: string, data: { country_code: string; item: string }) =>
+        req<LegalItem>(`/projects/${id}/legal`, { method: "POST", body: JSON.stringify(data) }),
+      update: (id: string, itemId: string, completed: boolean) =>
+        req<{ ok: true }>(`/projects/${id}/legal/${itemId}`, { method: "PUT", body: JSON.stringify({ completed }) }),
+      delete: (id: string, itemId: string) =>
+        req<{ ok: true }>(`/projects/${id}/legal/${itemId}`, { method: "DELETE" }),
     },
   },
 };
