@@ -4,6 +4,7 @@ import authRouter from "./routes/auth.ts";
 import projectsRouter from "./routes/projects.ts";
 import ideasRouter from "./routes/ideas.ts";
 import miscRouter from "./routes/misc.ts";
+import filesRouter from "./routes/files.ts";
 
 // Initialize DB (runs all CREATE TABLE IF NOT EXISTS on import)
 import "./db/index.ts";
@@ -18,6 +19,7 @@ const app = new Hono();
 app.route("/api/auth", authRouter);
 app.route("/api/projects", projectsRouter);
 app.route("/api/ideas", ideasRouter);
+app.route("/api/files", filesRouter);
 app.route("/api", miscRouter);
 
 // Static files from client/dist

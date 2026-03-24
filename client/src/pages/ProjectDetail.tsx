@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { StageBadge, TypeBadge, TagInput, PingDot, fmt, Empty } from "@/components/app-ui";
+import FilesView from "@/components/FilesView";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, ProjectCountry, LegalItem, Note } from "@/lib/types";
@@ -126,7 +127,9 @@ export default function ProjectDetail() {
             <BuildLogTab id={id!} queryClient={queryClient} />
           </TabsContent>
           <TabsContent value="files" className="mt-0">
-            <div className="text-muted-foreground p-4">Files tab — coming in Task 11</div>
+            <div className="p-4">
+              <FilesView projectId={id} />
+            </div>
           </TabsContent>
         </Tabs>
       </div>

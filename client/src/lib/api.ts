@@ -1,4 +1,4 @@
-import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note, Idea } from "./types";
+import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note, Idea, FileRecord } from "./types";
 
 const BASE = "/api";
 
@@ -38,6 +38,20 @@ export const api = {
     delete: (id: string) => req<{ ok: true }>(`/ideas/${id}`, { method: "DELETE" }),
     promote: (id: string) =>
       req<{ idea: Idea; project: Project }>(`/ideas/${id}/promote`, { method: "POST" }),
+  },
+  files: {
+    list: (projectId?: string) =>
+      req<FileRecord[]>(`/files${projectId ? `?projectId=${projectId}` : ""}`),
+    upload: async (file: File, projectId?: string): Promise<FileRecord> => {
+      const form = new FormData();
+      form.append("file", file);
+      const url = `${BASE}/files${projectId ? `?projectId=${projectId}` : ""}`;
+      const res = await fetch(url, { method: "POST", body: form, credentials: "include" });
+      if (!res.ok) throw new Error((await res.json()).error);
+      return res.json();
+    },
+    downloadUrl: (id: string) => `${BASE}/files/${id}/download`,
+    delete: (id: string) => req<{ ok: true }>(`/files/${id}`, { method: "DELETE" }),
   },
   projects: {
     list: () => req<Project[]>("/projects"),
