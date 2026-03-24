@@ -1,4 +1,4 @@
-import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note } from "./types";
+import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note, Idea } from "./types";
 
 const BASE = "/api";
 
@@ -29,6 +29,16 @@ export const api = {
   },
   ping: (url: string) =>
     req<{ status: "up" | "down"; latencyMs: number }>("/ping", { method: "POST", body: JSON.stringify({ url }) }),
+  ideas: {
+    list: () => req<Idea[]>("/ideas"),
+    create: (data: { title: string; body: string }) =>
+      req<Idea>("/ideas", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: { title: string; body: string }) =>
+      req<Idea>(`/ideas/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    delete: (id: string) => req<{ ok: true }>(`/ideas/${id}`, { method: "DELETE" }),
+    promote: (id: string) =>
+      req<{ idea: Idea; project: Project }>(`/ideas/${id}/promote`, { method: "POST" }),
+  },
   projects: {
     list: () => req<Project[]>("/projects"),
     get: (id: string) => req<Project>(`/projects/${id}`),

@@ -6,6 +6,7 @@ import Layout from "@/components/Layout";
 import Dashboard from "@/pages/Dashboard";
 import Projects from "@/pages/Projects";
 import ProjectDetail from "@/pages/ProjectDetail";
+import Ideas from "@/pages/Ideas";
 
 export default function App() {
   const { data: user, isLoading } = useQuery({
@@ -32,7 +33,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/:id" element={<ProjectDetail />} />
-        <Route path="/ideas" element={<div className="p-8 text-muted-foreground">Ideas — coming soon</div>} />
+        <Route path="/ideas" element={<Ideas />} />
         <Route path="/files" element={<div className="p-8 text-muted-foreground">Files — coming soon</div>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
