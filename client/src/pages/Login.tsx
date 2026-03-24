@@ -30,15 +30,17 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-full max-w-[400px] px-4">
+      <div className="w-full max-w-[380px] px-4">
         <div className="flex items-center gap-2 justify-center mb-8">
-          <Rocket size={16} className="text-foreground" />
-          <span className="font-bold text-[15px] tracking-tight">Launchpad</span>
+          <Rocket size={18} className="text-foreground" />
+          <span className="font-semibold text-[16px] tracking-tight">Launchpad</span>
         </div>
         <Card>
-          <CardHeader>
-            <CardTitle>{mode === "login" ? "Sign in" : "Create account"}</CardTitle>
-            <CardDescription className="text-ink-2">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-[16px]">
+              {mode === "login" ? "Sign in" : "Create account"}
+            </CardTitle>
+            <CardDescription>
               {mode === "login" ? "Enter your credentials to continue" : "Set up your Launchpad"}
             </CardDescription>
           </CardHeader>
@@ -48,16 +50,16 @@ export default function Login() {
               className="space-y-4"
             >
               {mode === "register" && (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <Label htmlFor="name">Name</Label>
                   <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
                 </div>
               )}
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
@@ -70,13 +72,12 @@ export default function Login() {
                 {mutation.isPending ? "..." : mode === "login" ? "Sign in" : "Create account"}
               </Button>
             </form>
-            <p className="mt-4 text-center text-sm text-muted-foreground">
+            <p className="mt-4 text-center text-[13px] text-muted-foreground">
               {mode === "login" ? "No account?" : "Already have an account?"}{" "}
-              {/* inline text toggle — not a UI action, plain button intentional */}
               <button
                 type="button"
                 onClick={() => setMode(mode === "login" ? "register" : "login")}
-                className="text-foreground underline underline-offset-4"
+                className="text-foreground underline underline-offset-4 hover:text-foreground/80 transition-colors"
               >
                 {mode === "login" ? "Register" : "Sign in"}
               </button>

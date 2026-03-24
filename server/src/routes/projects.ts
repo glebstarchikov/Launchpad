@@ -1,16 +1,8 @@
 import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
+import { DEFAULT_CHECKLIST } from "../lib/constants.ts";
 import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectCountry, LegalItem, Note } from "../types/index.ts";
-
-const DEFAULT_CHECKLIST = [
-  "Custom domain connected", "SSL certificate active", "Privacy Policy published",
-  "Terms of Service published", "OG meta tags set", "Favicon uploaded",
-  "Analytics wired up", "Error tracking connected", "Payment flow tested end-to-end",
-  "Email transactional flow tested", "Mobile responsiveness checked",
-  "Lighthouse score > 80", "404 page exists", "Uptime monitor set",
-  "Backup strategy in place",
-];
 
 const LEGAL_REQUIREMENTS: Record<string, string[]> = {
   EU:  ["GDPR Privacy Policy", "Cookie Consent Banner", "DPA", "Right to Deletion Flow", "Data Breach Protocol", "ROPA"],
@@ -88,7 +80,7 @@ router.put("/:id", async (c) => {
      JSON.stringify(tech_stack ?? []), last_deployed ?? null, now,
      c.req.param("id"), c.get("userId")]
   );
-  const project = db.query<Project, [string]>("SELECT * FROM projects WHERE id = ?").get(c.req.param("id"));
+  const project = db.query<Project, [string, string]>("SELECT * FROM projects WHERE id = ? AND user_id = ?").get(c.req.param("id"), c.get("userId"));
   if (!project) return c.json({ error: "Not found" }, 404);
   return c.json(project);
 });

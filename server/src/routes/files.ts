@@ -28,15 +28,19 @@ router.get("/", (c) => {
 });
 
 // POST /api/files?projectId= — multipart upload
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+
 router.post("/", async (c) => {
   const projectId = c.req.query("projectId") ?? null;
   const formData = await c.req.formData();
   const file = formData.get("file") as File | null;
   if (!file) return c.json({ error: "file required" }, 400);
+  if (file.size > MAX_FILE_SIZE) return c.json({ error: "File too large (max 50 MB)" }, 413);
 
   await mkdir(UPLOADS_DIR, { recursive: true });
 
-  const ext = file.name.split(".").pop() ?? "";
+  const safeName = file.name.replace(/[^\w.\-()  ]/g, "_");
+  const ext = safeName.split(".").pop() ?? "";
   const filename = `${crypto.randomUUID()}${ext ? `.${ext}` : ""}`;
   const dest = join(UPLOADS_DIR, filename);
 
@@ -45,7 +49,7 @@ router.post("/", async (c) => {
   const id = crypto.randomUUID();
   db.run(
     "INSERT INTO files (id, project_id, user_id, filename, original_name, mimetype, size, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    [id, projectId, c.get("userId"), filename, file.name, file.type, file.size, Date.now()]
+    [id, projectId, c.get("userId"), filename, safeName, file.type, file.size, Date.now()]
   );
 
   return c.json(
@@ -67,7 +71,8 @@ router.get("/:id/download", async (c) => {
   const bunFile = Bun.file(path);
   if (!(await bunFile.exists())) return c.json({ error: "File not found on disk" }, 404);
 
-  c.header("Content-Disposition", `attachment; filename="${file.original_name}"`);
+  const sanitized = file.original_name.replace(/["\\]/g, "_");
+  c.header("Content-Disposition", `attachment; filename="${sanitized}"`);
   c.header("Content-Type", file.mimetype || "application/octet-stream");
   return new Response(bunFile);
 });
@@ -88,7 +93,7 @@ router.delete("/:id", async (c) => {
     // If disk file is already gone, still delete DB record
   }
 
-  db.run("DELETE FROM files WHERE id = ?", [file.id]);
+  db.run("DELETE FROM files WHERE id = ? AND user_id = ?", [file.id, c.get("userId")]);
   return c.json({ ok: true });
 });
 

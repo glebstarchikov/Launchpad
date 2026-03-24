@@ -1,16 +1,8 @@
 import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
+import { DEFAULT_CHECKLIST } from "../lib/constants.ts";
 import type { Idea, Project } from "../types/index.ts";
-
-const DEFAULT_CHECKLIST = [
-  "Custom domain connected", "SSL certificate active", "Privacy Policy published",
-  "Terms of Service published", "OG meta tags set", "Favicon uploaded",
-  "Analytics wired up", "Error tracking connected", "Payment flow tested end-to-end",
-  "Email transactional flow tested", "Mobile responsiveness checked",
-  "Lighthouse score > 80", "404 page exists", "Uptime monitor set",
-  "Backup strategy in place",
-];
 
 const router = new Hono<{ Variables: { userId: string } }>();
 router.use("*", requireAuth);
@@ -39,7 +31,7 @@ router.put("/:id", async (c) => {
   const now = Date.now();
   db.run("UPDATE ideas SET title=?, body=?, updated_at=? WHERE id=? AND user_id=?",
     [title, body ?? "", now, c.req.param("id"), c.get("userId")]);
-  return c.json(db.query<Idea, [string]>("SELECT * FROM ideas WHERE id = ?").get(c.req.param("id")));
+  return c.json(db.query<Idea, [string, string]>("SELECT * FROM ideas WHERE id = ? AND user_id = ?").get(c.req.param("id"), c.get("userId")));
 });
 
 router.delete("/:id", (c) => {

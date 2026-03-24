@@ -1,34 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ChevronRight } from "lucide-react";
+import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { StageBadge, TypeBadge, Empty, fmt, STAGE_META } from "@/components/app-ui";
+import { StageBadge, Empty, fmt, STAGE_META } from "@/components/app-ui";
 import { api } from "@/lib/api";
 import type { ProjectStage } from "@/lib/types";
-
-interface StatCardProps {
-  label: string;
-  value: string;
-  sub?: string;
-  colour: string;
-  icon: React.ReactNode;
-}
-
-function StatCard({ label, value, sub, colour, icon }: StatCardProps) {
-  return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">{label}</p>
-          <div className="p-1.5 bg-muted rounded-md text-muted-foreground">{icon}</div>
-        </div>
-        <p className={cn("font-mono text-3xl font-medium mt-2", colour)}>{value}</p>
-        {sub && <p className="text-sm text-muted-foreground mt-1">{sub}</p>}
-      </CardContent>
-    </Card>
-  );
-}
 
 const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
 
@@ -42,11 +19,18 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="p-8">
-        <p className="text-muted-foreground">Loading...</p>
+      <div className="p-8 max-w-6xl">
+        <div className="h-7 w-32 bg-card rounded border border-border animate-pulse mb-2" />
+        <div className="h-4 w-48 bg-card rounded border border-border animate-pulse opacity-60" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-[100px] bg-card rounded-lg border border-border animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
+
   if (isError || !data) {
     return (
       <div className="p-8">
@@ -66,46 +50,69 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-      <p className="text-ink-2 mt-1">Your founder command centre</p>
-
-      {/* 4 stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-        <StatCard
-          label="Total MRR"
-          value={fmt(mrr)}
-          colour="text-success"
-          icon={<TrendingUp size={16} />}
-        />
-        <StatCard
-          label="Projects"
-          value={projectCount.toString()}
-          colour="text-foreground"
-          icon={<FolderKanban size={16} />}
-        />
-        <StatCard
-          label="Idea Inbox"
-          value={ideaCount.toString()}
-          colour="text-warning"
-          icon={<Lightbulb size={16} />}
-        />
-        <StatCard
-          label="Legal Pending"
-          value={legalPending.toString()}
-          colour="text-destructive"
-          icon={<AlertTriangle size={16} />}
-        />
+    <div className="p-8 max-w-6xl space-y-8">
+      <div>
+        <h1 className="text-[22px] font-semibold tracking-tight">Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1">Your founder command centre</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
-        {/* Pipeline bar — col-span-2 */}
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] text-muted-foreground uppercase tracking-widest">Total MRR</span>
+              <TrendingUp size={14} className="text-muted-foreground/70" />
+            </div>
+            <p className={cn("font-mono text-[28px] font-semibold tracking-tight leading-none", mrr > 0 ? "text-success" : "text-foreground")}>{fmt(mrr)}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] text-muted-foreground uppercase tracking-widest">Projects</span>
+              <FolderKanban size={14} className="text-muted-foreground/70" />
+            </div>
+            <p className="font-mono text-[28px] font-semibold tracking-tight leading-none text-foreground">{projectCount}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] text-muted-foreground uppercase tracking-widest">Idea Inbox</span>
+              <Lightbulb size={14} className="text-muted-foreground/70" />
+            </div>
+            <p className="font-mono text-[28px] font-semibold tracking-tight leading-none text-warning">{ideaCount}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] text-muted-foreground uppercase tracking-widest">Legal Pending</span>
+              <AlertTriangle size={14} className="text-muted-foreground/70" />
+            </div>
+            <p className={cn(
+              "font-mono text-[28px] font-semibold tracking-tight leading-none",
+              legalPending > 0 ? "text-destructive" : "text-foreground"
+            )}>{legalPending}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Pipeline */}
         <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Pipeline</CardTitle>
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium">Pipeline</CardTitle>
+              <span className="text-[11px] text-muted-foreground tabular-nums font-mono">{total} total</span>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="flex rounded-full overflow-hidden h-2.5">
+            <div className="flex rounded-full overflow-hidden h-2 bg-secondary">
               {STAGES.map((stage) => {
                 const count = countByStage[stage] ?? 0;
                 if (count === 0) return null;
@@ -120,12 +127,15 @@ export default function Dashboard() {
                 );
               })}
             </div>
-            <div className="flex flex-wrap gap-3 mt-3">
+            <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4">
               {STAGES.filter((s) => (countByStage[s] ?? 0) > 0).map((stage) => (
-                <div key={stage} className="flex items-center gap-1.5">
-                  <div className={cn("w-2 h-2 rounded-full", STAGE_META[stage].className)} />
-                  <span className="text-xs text-muted-foreground">
-                    {STAGE_META[stage].label} ({countByStage[stage]})
+                <div key={stage} className="flex items-center gap-2">
+                  <div className={cn("w-2 h-2 rounded-full shrink-0", STAGE_META[stage].className)} />
+                  <span className="text-[12px] text-muted-foreground">
+                    {STAGE_META[stage].label}
+                  </span>
+                  <span className="text-[12px] text-foreground font-medium font-mono tabular-nums">
+                    {countByStage[stage]}
                   </span>
                 </div>
               ))}
@@ -133,31 +143,31 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Projects — col-span-1 */}
+        {/* Recent Projects */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle>Recent Projects</CardTitle>
-              <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                {projectCount}
-              </span>
+              <CardTitle className="text-sm font-medium">Recent Projects</CardTitle>
+              <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{projectCount}</span>
             </div>
           </CardHeader>
           <CardContent>
             {recentProjects.length === 0 ? (
-              <Empty icon={<FolderKanban size={24} />} title="No projects yet" />
+              <Empty icon={<FolderKanban size={20} />} title="No projects yet" />
             ) : (
-              <div className="space-y-0.5">
+              <div className="-mx-2">
                 {recentProjects.map((project) => (
                   <button
                     key={project.id}
                     onClick={() => navigate(`/projects/${project.id}`)}
-                    className="w-full flex items-center gap-2 px-2 py-2 rounded hover:bg-secondary/50 transition-colors group"
+                    className="w-full flex items-center gap-2.5 px-2 py-2.5 rounded-md hover:bg-secondary transition-colors group text-left"
                   >
-                    <span className="text-sm font-medium flex-1 text-left truncate">{project.name}</span>
+                    <span className="text-[13px] font-medium flex-1 truncate">{project.name}</span>
                     <StageBadge stage={project.stage} />
-                    <TypeBadge type={project.type} />
-                    <ChevronRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0" />
+                    <ArrowUpRight
+                      size={12}
+                      className="text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 transition-opacity"
+                    />
                   </button>
                 ))}
               </div>
@@ -166,30 +176,28 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Idea Inbox preview */}
-      <Card className="mt-4">
-        <CardHeader>
+      {/* Idea Inbox */}
+      <Card>
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle>Idea Inbox</CardTitle>
-            <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-              {ideaCount}
-            </span>
+            <CardTitle className="text-sm font-medium">Idea Inbox</CardTitle>
+            <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{ideaCount}</span>
           </div>
         </CardHeader>
         <CardContent>
           {recentIdeas.length === 0 ? (
             <Empty
-              icon={<Lightbulb size={24} />}
+              icon={<Lightbulb size={20} />}
               title="No ideas yet"
               sub="Capture raw ideas before they slip away."
             />
           ) : (
             <div className="divide-y divide-border">
               {recentIdeas.map((idea) => (
-                <div key={idea.id} className="py-2.5 px-1">
-                  <p className="text-sm font-medium">{idea.title}</p>
+                <div key={idea.id} className="py-3 first:pt-0 last:pb-0">
+                  <p className="text-[13px] font-medium">{idea.title}</p>
                   {idea.body && (
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{idea.body}</p>
+                    <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-1">{idea.body}</p>
                   )}
                 </div>
               ))}

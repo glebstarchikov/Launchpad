@@ -1,15 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FolderKanban, Plus, Search } from "lucide-react";
+import { FolderKanban, Plus, Search, ArrowUpRight } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Project } from "@/lib/types";
 import type { ProjectStage, ProjectType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -312,7 +311,6 @@ export default function Projects() {
 }
 
 function ProjectCard({ project, onClick }: { project: Project; onClick: () => void }) {
-  // tech_stack is stored as JSON string in DB
   const techStack: string[] = (() => {
     try {
       return JSON.parse(project.tech_stack) as string[];
@@ -322,41 +320,44 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
   })();
 
   return (
-    <Card
-      className="hover:shadow-md transition-shadow cursor-pointer"
+    <div
+      className="group bg-card border border-border rounded-lg cursor-pointer hover:border-muted-foreground/30 transition-colors p-4 flex flex-col gap-3"
       onClick={onClick}
     >
-      <CardContent className="p-4 flex flex-col gap-3">
-        {/* Name + description */}
-        <div>
-          <h3 className="font-semibold text-foreground">{project.name}</h3>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium text-[14px] text-foreground truncate">{project.name}</h3>
           {project.description && (
-            <p className="text-sm text-muted-foreground truncate mt-0.5">{project.description}</p>
+            <p className="text-[12px] text-muted-foreground truncate mt-0.5">{project.description}</p>
           )}
         </div>
+      </div>
 
-        {/* Tech stack chips */}
-        {techStack.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {techStack.map((tech) => (
-              <Badge key={tech} variant="outline" className="text-xs">
-                {tech}
-              </Badge>
-            ))}
-          </div>
-        )}
-
-        {/* URL */}
-        {project.url && (
-          <p className="font-mono text-xs text-muted-foreground truncate">{project.url}</p>
-        )}
-
-        {/* Badges */}
-        <div className="flex items-center gap-2 mt-auto">
-          <StageBadge stage={project.stage} />
-          <TypeBadge type={project.type} />
+      {techStack.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {techStack.slice(0, 4).map((tech) => (
+            <span key={tech} className="text-[11px] px-1.5 py-0.5 rounded-md bg-secondary text-muted-foreground font-medium">
+              {tech}
+            </span>
+          ))}
+          {techStack.length > 4 && (
+            <span className="text-[11px] px-1.5 py-0.5 text-muted-foreground">+{techStack.length - 4}</span>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      )}
+
+      {project.url && (
+        <p className="font-mono text-[11px] text-muted-foreground truncate">{project.url}</p>
+      )}
+
+      <div className="flex items-center gap-2 mt-auto pt-3 border-t border-border">
+        <StageBadge stage={project.stage} />
+        <TypeBadge type={project.type} />
+        <ArrowUpRight
+          size={12}
+          className="ml-auto text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+        />
+      </div>
+    </div>
   );
 }

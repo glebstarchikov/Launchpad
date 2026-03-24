@@ -11,10 +11,10 @@ export type { ProjectStage, ProjectType };
 
 export const STAGE_META: Record<ProjectStage, { label: string; className: string }> = {
   idea:     { label: "Idea",     className: "bg-muted text-muted-foreground border-border" },
-  building: { label: "Building", className: "bg-info/10 text-info border-info/20" },
-  beta:     { label: "Beta",     className: "bg-purple/10 text-purple border-purple/20" },
-  live:     { label: "Live",     className: "bg-success/10 text-success border-success/20" },
-  growing:  { label: "Growing",  className: "bg-warning/10 text-warning border-warning/20" },
+  building: { label: "Building", className: "bg-info/10 text-info/80 border-info/10" },
+  beta:     { label: "Beta",     className: "bg-purple/10 text-purple/80 border-purple/10" },
+  live:     { label: "Live",     className: "bg-success/10 text-success/80 border-success/10" },
+  growing:  { label: "Growing",  className: "bg-warning/10 text-warning/80 border-warning/10" },
   sunset:   { label: "Sunset",   className: "bg-muted text-muted-foreground border-border opacity-60" },
 };
 
@@ -34,8 +34,8 @@ export function TypeBadge({ type }: { type: ProjectType }) {
       className={cn(
         "text-xs font-medium",
         type === "for-profit"
-          ? "bg-warning/10 text-warning border-warning/20"
-          : "bg-purple/10 text-purple border-purple/20"
+          ? "bg-warning/10 text-warning/80 border-warning/10"
+          : "bg-purple/10 text-purple/80 border-purple/10"
       )}
     >
       {type === "for-profit" ? "For-profit" : "Open-source"}
