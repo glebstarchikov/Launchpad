@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ChevronRight, ExternalLink, Pencil, Plus, RefreshCw, Trash2, X, Check,
+  BookOpen, ChevronRight, ExternalLink, Pencil, Plus, RefreshCw, Trash2, X, Check,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,10 +17,11 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { StageBadge, TypeBadge, TagInput, PingDot, fmt } from "@/components/app-ui";
+import { Switch } from "@/components/ui/switch";
+import { StageBadge, TypeBadge, TagInput, PingDot, fmt, Empty } from "@/components/app-ui";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, ProjectCountry, LegalItem } from "@/lib/types";
+import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, ProjectCountry, LegalItem, Note } from "@/lib/types";
 
 const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
 const TYPES: ProjectType[] = ["for-profit", "open-source"];
@@ -122,7 +123,7 @@ export default function ProjectDetail() {
             <ComplianceTab id={id!} queryClient={queryClient} />
           </TabsContent>
           <TabsContent value="buildlog" className="mt-0">
-            <div className="text-muted-foreground p-4">Build Log tab — coming in Task 9</div>
+            <BuildLogTab id={id!} queryClient={queryClient} />
           </TabsContent>
           <TabsContent value="files" className="mt-0">
             <div className="text-muted-foreground p-4">Files tab — coming in Task 11</div>
@@ -780,6 +781,99 @@ function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnTyp
       {countries.length === 0 && (
         <div className="text-sm text-muted-foreground text-center py-8">
           No countries added yet. Select a country above to get started with compliance tracking.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BuildLogTab({ id, queryClient }: { id: string; queryClient: ReturnType<typeof useQueryClient> }) {
+  const [noteContent, setNoteContent] = useState("");
+  const [isBuildLog, setIsBuildLog] = useState(true);
+
+  const allNotes = useQuery({
+    queryKey: ["notes", id],
+    queryFn: () => api.projects.notes.list(id),
+  });
+
+  const addNote = useMutation({
+    mutationFn: (data: { content: string; is_build_log: boolean }) =>
+      api.projects.notes.create(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes", id] });
+      setNoteContent("");
+    },
+  });
+
+  const deleteNote = useMutation({
+    mutationFn: (noteId: string) => api.projects.notes.delete(id, noteId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notes", id] }),
+  });
+
+  const buildLogEntries = (allNotes.data ?? []).filter((n: Note) => n.is_build_log === 1);
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      {/* Composer card */}
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <Textarea
+            value={noteContent}
+            onChange={(e) => setNoteContent(e.target.value)}
+            placeholder="What did you build today?"
+            className="min-h-[100px] resize-none"
+          />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="build-log-toggle"
+                checked={isBuildLog}
+                onCheckedChange={setIsBuildLog}
+              />
+              <Label htmlFor="build-log-toggle" className="text-sm text-muted-foreground cursor-pointer">
+                Build log entry
+              </Label>
+            </div>
+            <Button
+              size="sm"
+              disabled={!noteContent.trim() || addNote.isPending}
+              onClick={() => addNote.mutate({ content: noteContent, is_build_log: isBuildLog })}
+            >
+              Save
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Build log feed */}
+      {buildLogEntries.length === 0 ? (
+        <Empty
+          icon={<BookOpen size={32} />}
+          title="No build log entries yet"
+          sub="Toggle 'Build log entry' when saving a note to add it here."
+        />
+      ) : (
+        <div className="space-y-3">
+          {buildLogEntries.map((entry: Note) => (
+            <Card key={entry.id} className="group">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm whitespace-pre-wrap flex-1">{entry.content}</p>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:text-destructive shrink-0"
+                    onClick={() => deleteNote.mutate(entry.id)}
+                  >
+                    <Trash2 size={12} />
+                  </Button>
+                </div>
+                <p className="text-xs font-mono text-muted-foreground mt-2">
+                  {new Date(entry.created_at).toLocaleString()}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
     </div>

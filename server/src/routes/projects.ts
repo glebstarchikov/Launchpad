@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
-import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectCountry, LegalItem } from "../types/index.ts";
+import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectCountry, LegalItem, Note } from "../types/index.ts";
 
 const DEFAULT_CHECKLIST = [
   "Custom domain connected", "SSL certificate active", "Privacy Policy published",
@@ -406,6 +406,46 @@ router.delete("/:id/legal/:itemId", (c) => {
   }
   db.run("DELETE FROM legal_items WHERE id = ? AND project_id = ?",
     [c.req.param("itemId"), c.req.param("id")]);
+  return c.json({ ok: true });
+});
+
+// GET /api/projects/:id/notes
+router.get("/:id/notes", (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  return c.json(
+    db.query<Note, [string]>(
+      "SELECT * FROM notes WHERE project_id = ? ORDER BY created_at DESC"
+    ).all(c.req.param("id"))
+  );
+});
+
+// POST /api/projects/:id/notes
+router.post("/:id/notes", async (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  const { content, is_build_log } = await c.req.json();
+  if (!content) return c.json({ error: "content required" }, 400);
+  const id = crypto.randomUUID();
+  db.run(
+    "INSERT INTO notes (id, project_id, content, is_build_log, created_at) VALUES (?, ?, ?, ?, ?)",
+    [id, c.req.param("id"), content, is_build_log ? 1 : 0, Date.now()]
+  );
+  return c.json(
+    db.query<Note, [string]>("SELECT * FROM notes WHERE id = ?").get(id),
+    201
+  );
+});
+
+// DELETE /api/projects/:id/notes/:noteId
+router.delete("/:id/notes/:noteId", (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  db.run("DELETE FROM notes WHERE id = ? AND project_id = ?",
+    [c.req.param("noteId"), c.req.param("id")]);
   return c.json({ ok: true });
 });
 

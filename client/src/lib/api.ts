@@ -1,4 +1,4 @@
-import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem } from "./types";
+import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note } from "./types";
 
 const BASE = "/api";
 
@@ -91,6 +91,13 @@ export const api = {
         req<{ ok: true }>(`/projects/${id}/legal/${itemId}`, { method: "PUT", body: JSON.stringify({ completed }) }),
       delete: (id: string, itemId: string) =>
         req<{ ok: true }>(`/projects/${id}/legal/${itemId}`, { method: "DELETE" }),
+    },
+    notes: {
+      list: (id: string) => req<Note[]>(`/projects/${id}/notes`),
+      create: (id: string, data: { content: string; is_build_log: boolean }) =>
+        req<Note>(`/projects/${id}/notes`, { method: "POST", body: JSON.stringify(data) }),
+      delete: (id: string, noteId: string) =>
+        req<{ ok: true }>(`/projects/${id}/notes/${noteId}`, { method: "DELETE" }),
     },
   },
 };
