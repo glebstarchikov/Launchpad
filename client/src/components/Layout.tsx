@@ -83,7 +83,7 @@ export default function Layout() {
         <div className="flex-1 min-w-0 flex flex-col min-h-screen">
           {/* Top bar — only shows toggle button when sidebar is collapsed */}
           {collapsed && (
-            <div className="h-[48px] items-center px-3 shrink-0 hidden sm:flex">
+            <div className="h-[48px] items-center px-3 shrink-0 hidden sm:flex relative z-[60]">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button

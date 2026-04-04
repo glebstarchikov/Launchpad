@@ -130,8 +130,11 @@
     opacity: 1;
   }
 
-  /* Collapsed: aside slides fully off-screen left */
+  /* Collapsed: aside detaches from flow and slides off-screen left */
   .sidebar-aside[data-state="collapsed"] {
+    position: absolute;
+    left: 0;
+    top: 0;
     transform: scale(0.99) translateX(-100%);
     opacity: 0.8;
   }
