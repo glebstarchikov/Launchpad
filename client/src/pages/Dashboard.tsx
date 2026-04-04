@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight } from "lucide-react";
+import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight, Sparkles, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { StageBadge, Empty, fmt, STAGE_META } from "@/components/app-ui";
 import { api } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 import type { ProjectStage } from "@/lib/types";
 
 const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
@@ -40,6 +41,28 @@ export default function Dashboard() {
   }
 
   const { mrr, projectCount, ideaCount, legalPending, stageDist, recentProjects, recentIdeas } = data;
+
+  const queryClient = useQueryClient();
+
+  const today = new Date().toISOString().split("T")[0];
+  const { data: todaySummary } = useQuery({
+    queryKey: ["daily-summary", today],
+    queryFn: () => api.dailySummary.get(today),
+    retry: false,
+  });
+
+  const { data: llmHealth } = useQuery({
+    queryKey: ["health", "llm"],
+    queryFn: api.health.llm,
+    staleTime: 60_000,
+  });
+
+  const generateSummary = useMutation({
+    mutationFn: () => api.dailySummary.generate(today),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["daily-summary", today] });
+    },
+  });
 
   const total = stageDist.reduce(
     (s: number, x: { stage: string; count: number }) => s + x.count,
@@ -201,6 +224,55 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Daily Summary */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Sparkles size={14} className="text-purple" />
+              Daily Summary
+            </CardTitle>
+            {!todaySummary && llmHealth?.available && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => generateSummary.mutate()}
+                disabled={generateSummary.isPending}
+                className="h-7 text-xs"
+              >
+                {generateSummary.isPending ? (
+                  <><Loader2 size={12} className="animate-spin mr-1" /> Generating...</>
+                ) : (
+                  "Generate"
+                )}
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {todaySummary ? (
+            <div className="text-[13px] text-muted-foreground whitespace-pre-wrap leading-relaxed">
+              {todaySummary.summary}
+            </div>
+          ) : llmHealth?.available === false ? (
+            <div className="text-[12px] text-muted-foreground">
+              <p>LLM not available. Start Ollama to enable daily summaries.</p>
+              <p className="text-[11px] mt-1 font-mono text-muted-foreground/60">ollama serve && ollama pull llama3.1</p>
+            </div>
+          ) : generateSummary.isError ? (
+            <p className="text-[12px] text-destructive">
+              {(generateSummary.error as any)?.message ?? "Failed to generate summary."}
+            </p>
+          ) : (
+            <Empty
+              icon={<Sparkles size={20} />}
+              title="No summary yet"
+              sub={llmHealth?.available ? "Click Generate to create today's digest." : "Checking LLM availability..."}
+            />
           )}
         </CardContent>
       </Card>
