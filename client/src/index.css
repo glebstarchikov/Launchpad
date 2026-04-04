@@ -96,13 +96,12 @@
 }
 
 @layer components {
-  /* Sidebar wrapper — controls layout space taken by sidebar */
+  /* Sidebar wrapper — controls layout space */
   .sidebar-wrapper {
     width: var(--sidebar-width);
     transition: width var(--sidebar-duration) var(--sidebar-ease);
-    position: sticky;
-    top: 0;
-    height: 100vh;
+    position: relative;
+    align-self: stretch;
     overflow: visible;
     z-index: 20;
     flex-shrink: 0;
@@ -112,10 +111,10 @@
     width: 0px;
   }
 
-  /* Sidebar aside — the visible panel, always 240px wide */
+  /* Sidebar aside — always 240px */
   .sidebar-aside {
     width: var(--sidebar-width);
-    height: 100vh;
+    height: 100%;
     position: static;
     display: flex;
     flex-direction: column;
@@ -125,32 +124,38 @@
       transform var(--sidebar-duration) var(--sidebar-ease),
       opacity var(--sidebar-duration) var(--sidebar-ease),
       background var(--sidebar-duration) var(--sidebar-ease),
-      box-shadow var(--sidebar-duration) var(--sidebar-ease);
+      box-shadow var(--sidebar-duration) var(--sidebar-ease),
+      border-radius var(--sidebar-duration) var(--sidebar-ease);
     transform: translateX(0);
     opacity: 1;
   }
 
-  /* Collapsed: aside detaches from flow and slides off-screen left */
+  /* Collapsed: slides off-screen left, uses viewport height */
   .sidebar-aside[data-state="collapsed"] {
     position: absolute;
     left: 0;
     top: 0;
+    height: calc(100vh - 48px);
     transform: scale(0.99) translateX(-100%);
     opacity: 0.8;
   }
 
-  /* Peeking: aside slides BACK in as floating overlay (wrapper still 0px) */
+  /* Peeking: floats in as elevated card with rounded corners */
   .sidebar-aside[data-state="collapsed"].sidebar-peeking {
     transform: scale(1) translateX(0px);
     opacity: 1;
+    top: 8px;
+    left: 8px;
+    height: calc(100vh - 48px - 16px);
     background: hsl(var(--card));
-    border-right: 1px solid hsl(var(--border));
+    border: 1px solid hsl(var(--border));
+    border-radius: 12px;
     box-shadow:
-      rgba(0, 0, 0, 0.04) 0px 2px 2px 0px,
-      rgba(0, 0, 0, 0.04) 0px 8px 16px -4px;
+      0 0 0 1px rgba(255, 255, 255, 0.03),
+      0 2px 4px rgba(0, 0, 0, 0.12),
+      0 8px 24px rgba(0, 0, 0, 0.16);
   }
 
-  /* Elevate wrapper z-index when peeking so aside floats above content */
   .sidebar-wrapper.sidebar-peeking {
     z-index: 50;
   }

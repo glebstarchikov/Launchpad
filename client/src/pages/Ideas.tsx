@@ -83,7 +83,7 @@ export default function Ideas() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-0px)]">
+    <div className="flex h-[calc(100vh-48px)]">
       {/* Left pane */}
       <div className="w-[280px] border-r border-border flex flex-col shrink-0">
         <div className="p-4 border-b border-border flex items-center justify-between">
