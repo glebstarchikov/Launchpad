@@ -12,10 +12,31 @@ const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["dashboard"],
     queryFn: api.dashboard.get,
+  });
+
+  const today = new Date().toISOString().split("T")[0];
+  const { data: todaySummary } = useQuery({
+    queryKey: ["daily-summary", today],
+    queryFn: () => api.dailySummary.get(today),
+    retry: false,
+  });
+
+  const { data: llmHealth } = useQuery({
+    queryKey: ["health", "llm"],
+    queryFn: api.health.llm,
+    staleTime: 60_000,
+  });
+
+  const generateSummary = useMutation({
+    mutationFn: () => api.dailySummary.generate(today),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["daily-summary", today] });
+    },
   });
 
   if (isLoading) {
@@ -41,28 +62,6 @@ export default function Dashboard() {
   }
 
   const { mrr, projectCount, ideaCount, legalPending, stageDist, recentProjects, recentIdeas } = data;
-
-  const queryClient = useQueryClient();
-
-  const today = new Date().toISOString().split("T")[0];
-  const { data: todaySummary } = useQuery({
-    queryKey: ["daily-summary", today],
-    queryFn: () => api.dailySummary.get(today),
-    retry: false,
-  });
-
-  const { data: llmHealth } = useQuery({
-    queryKey: ["health", "llm"],
-    queryFn: api.health.llm,
-    staleTime: 60_000,
-  });
-
-  const generateSummary = useMutation({
-    mutationFn: () => api.dailySummary.generate(today),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["daily-summary", today] });
-    },
-  });
 
   const total = stageDist.reduce(
     (s: number, x: { stage: string; count: number }) => s + x.count,
