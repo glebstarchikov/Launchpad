@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  BookOpen, ChevronRight, ExternalLink, Pencil, Plus, RefreshCw, Trash2, X, Check,
+  BookOpen, ChevronRight, ExternalLink, Pencil, Plus, RefreshCw, Trash2, X, Check, Star,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,6 +43,14 @@ export default function ProjectDetail() {
     enabled: !!id,
   });
 
+  const starProject = useMutation({
+    mutationFn: () => api.projects.star(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects", id] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+
   if (isLoading) return <div className="p-8 text-muted-foreground">Loading...</div>;
   if (!project) return <div className="p-8 text-destructive">Project not found.</div>;
 
@@ -69,6 +77,13 @@ export default function ProjectDetail() {
         {/* Name + badges + actions */}
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-lg font-semibold">{project.name}</h1>
+          <button
+            onClick={() => starProject.mutate()}
+            className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            aria-label={project.starred ? "Unstar project" : "Star project"}
+          >
+            <Star size={15} className={project.starred ? "fill-warning text-warning" : ""} />
+          </button>
           <StageBadge stage={project.stage} />
           <TypeBadge type={project.type} />
           <div className="ml-auto flex items-center gap-2">

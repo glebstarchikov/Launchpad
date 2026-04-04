@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FolderKanban, Plus, Search, ArrowUpRight } from "lucide-react";
+import { FolderKanban, Plus, Search, ArrowUpRight, Star } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Project } from "@/lib/types";
 import type { ProjectStage, ProjectType } from "@/lib/types";
@@ -82,6 +82,13 @@ export default function Projects() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setDialogOpen(false);
       setForm(DEFAULT_FORM);
+    },
+  });
+
+  const starProject = useMutation({
+    mutationFn: (id: string) => api.projects.star(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
   });
 
@@ -196,6 +203,7 @@ export default function Projects() {
               key={project.id}
               project={project}
               onClick={() => navigate(`/projects/${project.id}`)}
+              onStar={(id) => starProject.mutate(id)}
             />
           ))}
         </div>
@@ -310,7 +318,7 @@ export default function Projects() {
   );
 }
 
-function ProjectCard({ project, onClick }: { project: Project; onClick: () => void }) {
+function ProjectCard({ project, onClick, onStar }: { project: Project; onClick: () => void; onStar: (id: string) => void }) {
   const techStack: string[] = (() => {
     try {
       return JSON.parse(project.tech_stack) as string[];
@@ -331,6 +339,13 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
             <p className="text-[12px] text-muted-foreground truncate mt-0.5">{project.description}</p>
           )}
         </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onStar(project.id); }}
+          className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          aria-label={project.starred ? "Unstar project" : "Star project"}
+        >
+          <Star size={14} className={project.starred ? "fill-warning text-warning" : ""} />
+        </button>
       </div>
 
       {techStack.length > 0 && (
