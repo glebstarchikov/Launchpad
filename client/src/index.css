@@ -41,6 +41,9 @@
     --shadow-md: 0 8px 30px rgba(0,0,0,0.12);
     --shadow-lg: 0 30px 60px rgba(0,0,0,0.12);
     --shadow-xl: 0 24px 64px rgba(0,0,0,0.8);
+    --sidebar-width: 240px;
+    --sidebar-ease: cubic-bezier(0.31, 0.1, 0.08, 0.96);
+    --sidebar-duration: 0.26s;
   }
 
   * {
@@ -89,5 +92,63 @@
 
   a, button {
     transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  }
+}
+
+@layer components {
+  /* Sidebar wrapper — controls layout space taken by sidebar */
+  .sidebar-wrapper {
+    width: var(--sidebar-width);
+    transition: width var(--sidebar-duration) var(--sidebar-ease);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow: visible;
+    z-index: 20;
+    flex-shrink: 0;
+  }
+
+  .sidebar-wrapper[data-state="collapsed"] {
+    width: 0px;
+  }
+
+  /* Sidebar aside — the visible panel, always 240px wide */
+  .sidebar-aside {
+    width: var(--sidebar-width);
+    height: 100vh;
+    position: static;
+    display: flex;
+    flex-direction: column;
+    background: hsl(var(--background));
+    border-right: 1px solid hsl(var(--border));
+    transition:
+      transform var(--sidebar-duration) var(--sidebar-ease),
+      opacity var(--sidebar-duration) var(--sidebar-ease),
+      background var(--sidebar-duration) var(--sidebar-ease),
+      box-shadow var(--sidebar-duration) var(--sidebar-ease);
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  /* Collapsed: aside slides fully off-screen left */
+  .sidebar-aside[data-state="collapsed"] {
+    transform: scale(0.99) translateX(-100%);
+    opacity: 0.8;
+  }
+
+  /* Peeking: aside slides BACK in as floating overlay (wrapper still 0px) */
+  .sidebar-aside[data-state="collapsed"].sidebar-peeking {
+    transform: scale(1) translateX(0px);
+    opacity: 1;
+    background: hsl(var(--card));
+    border-right: 1px solid hsl(var(--border));
+    box-shadow:
+      rgba(0, 0, 0, 0.04) 0px 2px 2px 0px,
+      rgba(0, 0, 0, 0.04) 0px 8px 16px -4px;
+  }
+
+  /* Elevate wrapper z-index when peeking so aside floats above content */
+  .sidebar-wrapper.sidebar-peeking {
+    z-index: 50;
   }
 }
