@@ -124,3 +124,18 @@ export interface DashboardData {
   recentProjects: Pick<Project, "id" | "name" | "stage" | "type" | "url" | "updated_at">[];
   recentIdeas: Pick<Idea, "id" | "title" | "body" | "created_at">[];
 }
+
+export interface DailySummary {
+  id: string;
+  summary: string;
+  date: string;
+  created_at: number;
+  cached?: boolean;
+  activity_data?: string;
+}
+
+export interface LLMHealth {
+  available: boolean;
+  model: string;
+  error?: string;
+}

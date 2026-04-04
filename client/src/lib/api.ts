@@ -1,4 +1,4 @@
-import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note, Idea, FileRecord } from "./types";
+import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note, Idea, FileRecord, DailySummary, LLMHealth } from "./types";
 
 const BASE = "/api";
 
@@ -125,5 +125,17 @@ export const api = {
       delete: (id: string, noteId: string) =>
         req<{ ok: true }>(`/projects/${id}/notes/${noteId}`, { method: "DELETE" }),
     },
+  },
+  dailySummary: {
+    generate: (date?: string) =>
+      req<DailySummary>("/daily-summary/generate", {
+        method: "POST",
+        body: JSON.stringify(date ? { date } : {}),
+      }),
+    list: () => req<DailySummary[]>("/daily-summary"),
+    get: (date: string) => req<DailySummary>(`/daily-summary/${date}`),
+  },
+  health: {
+    llm: () => req<LLMHealth>("/health/llm"),
   },
 };
