@@ -22,6 +22,7 @@ export interface Project {
   last_deployed: number | null;
   created_at: number;
   updated_at: number;
+  starred: 0 | 1;
 }
 
 export interface ProjectLink {

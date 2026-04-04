@@ -85,6 +85,19 @@ router.put("/:id", async (c) => {
   return c.json(project);
 });
 
+// PUT /api/projects/:id/star — toggle starred
+router.put("/:id/star", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+  if (!ownsProject(id, userId)) return c.json({ error: "Not found" }, 404);
+  const project = db.query("SELECT starred FROM projects WHERE id = ?").get(id) as { starred: number } | null;
+  if (!project) return c.json({ error: "Not found" }, 404);
+  const newVal = project.starred ? 0 : 1;
+  db.run("UPDATE projects SET starred = ?, updated_at = ? WHERE id = ?", [newVal, Date.now(), id]);
+  const updated = db.query("SELECT * FROM projects WHERE id = ?").get(id);
+  return c.json(updated);
+});
+
 // DELETE /api/projects/:id
 router.delete("/:id", (c) => {
   db.run("DELETE FROM projects WHERE id = ? AND user_id = ?", [c.req.param("id"), c.get("userId")]);

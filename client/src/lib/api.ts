@@ -61,6 +61,8 @@ export const api = {
     update: (id: string, data: Partial<Omit<Project, "id" | "user_id" | "created_at">>) =>
       req<Project>(`/projects/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     delete: (id: string) => req<{ ok: true }>(`/projects/${id}`, { method: "DELETE" }),
+    star: (id: string) =>
+      req<Project>(`/projects/${id}/star`, { method: "PUT" }),
     links: {
       list: (id: string) => req<ProjectLink[]>(`/projects/${id}/links`),
       create: (id: string, data: { label: string; url: string; icon?: string }) =>

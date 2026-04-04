@@ -29,6 +29,8 @@ db.run(`CREATE TABLE IF NOT EXISTS projects (
   updated_at INTEGER NOT NULL
 )`);
 
+try { db.run(`ALTER TABLE projects ADD COLUMN starred INTEGER NOT NULL DEFAULT 0`); } catch {}
+
 db.run(`CREATE TABLE IF NOT EXISTS project_links (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
