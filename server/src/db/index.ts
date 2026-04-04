@@ -121,6 +121,16 @@ db.run(`CREATE TABLE IF NOT EXISTS files (
   uploaded_at INTEGER NOT NULL
 )`);
 
+db.run(`CREATE TABLE IF NOT EXISTS daily_summaries (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  summary TEXT NOT NULL,
+  activity_data TEXT NOT NULL,
+  date TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE(user_id, date)
+)`);
+
 db.run("CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)");
 db.run("CREATE INDEX IF NOT EXISTS idx_project_links_project_id ON project_links(project_id)");
 db.run("CREATE INDEX IF NOT EXISTS idx_project_countries_project_id ON project_countries(project_id)");
@@ -133,3 +143,4 @@ db.run("CREATE INDEX IF NOT EXISTS idx_notes_project_id ON notes(project_id)");
 db.run("CREATE INDEX IF NOT EXISTS idx_tech_debt_project_id ON tech_debt(project_id)");
 db.run("CREATE INDEX IF NOT EXISTS idx_files_project_id ON files(project_id)");
 db.run("CREATE INDEX IF NOT EXISTS idx_files_user_id ON files(user_id)");
+db.run("CREATE INDEX IF NOT EXISTS idx_daily_summaries_user_id ON daily_summaries(user_id)");
