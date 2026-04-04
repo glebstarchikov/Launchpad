@@ -19,7 +19,7 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="p-8 max-w-6xl">
+      <div className="px-8 py-6">
         <div className="h-7 w-32 bg-card rounded border border-border animate-pulse mb-2" />
         <div className="h-4 w-48 bg-card rounded border border-border animate-pulse opacity-60" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
@@ -33,7 +33,7 @@ export default function Dashboard() {
 
   if (isError || !data) {
     return (
-      <div className="p-8">
+      <div className="px-8 py-6">
         <p className="text-destructive text-sm">Failed to load dashboard.</p>
       </div>
     );
@@ -50,10 +50,9 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="p-8 max-w-6xl space-y-8">
-      <div>
-        <h1 className="text-[22px] font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Your founder command centre</p>
+    <div className="px-8 py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold">Dashboard</h1>
       </div>
 
       {/* Stat cards */}

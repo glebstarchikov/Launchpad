@@ -109,10 +109,10 @@ export default function Projects() {
   };
 
   return (
-    <div className="p-8">
+    <div className="px-8 py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Projects</h1>
+        <h1 className="text-lg font-semibold">Projects</h1>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus size={16} className="mr-2" />
           New Project

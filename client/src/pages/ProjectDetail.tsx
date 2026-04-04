@@ -68,7 +68,7 @@ export default function ProjectDetail() {
 
         {/* Name + badges + actions */}
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-xl font-semibold tracking-tight">{project.name}</h1>
+          <h1 className="text-lg font-semibold">{project.name}</h1>
           <StageBadge stage={project.stage} />
           <TypeBadge type={project.type} />
           <div className="ml-auto flex items-center gap-2">

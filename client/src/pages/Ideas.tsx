@@ -87,7 +87,7 @@ export default function Ideas() {
       {/* Left pane */}
       <div className="w-[280px] border-r border-border flex flex-col shrink-0">
         <div className="p-4 border-b border-border flex items-center justify-between">
-          <h1 className="font-semibold text-sm">Ideas</h1>
+          <h1 className="text-lg font-semibold">Ideas</h1>
           <Button size="sm" onClick={() => { setSelected(null); setComposing(true); }}>
             New
           </Button>
