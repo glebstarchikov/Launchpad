@@ -2,8 +2,15 @@ import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
 import type { Project, Idea } from "../types/index.ts";
+import { isLLMAvailable } from "../lib/llm.ts";
 
 const router = new Hono<{ Variables: { userId: string } }>();
+
+router.get("/health/llm", async (c) => {
+  const status = await isLLMAvailable();
+  return c.json(status);
+});
+
 router.use("*", requireAuth);
 
 router.get("/dashboard", (c) => {
