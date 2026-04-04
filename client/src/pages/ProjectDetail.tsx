@@ -56,7 +56,7 @@ export default function ProjectDetail() {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-[calc(100vh-48px)]">
       {/* Sticky header */}
       <div className="sticky top-0 z-10 bg-background border-b border-border px-8 pt-6 pb-0">
         {/* Breadcrumb */}
