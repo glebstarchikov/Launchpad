@@ -118,7 +118,7 @@ export default function News() {
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                     {item.source === "hackernews" ? "HN" : item.source}
                   </Badge>
-                  {item.relevance_score && item.relevance_score > 0 && (
+                  {item.relevance_score > 0 && (
                     <span className="text-[10px] text-success">
                       {Math.round(item.relevance_score * 100)}% relevant
                     </span>
@@ -170,9 +170,9 @@ export default function News() {
             </div>
           ) : (
             <div className="space-y-1.5">
-              {sources.filter(s => s.type === "rss").map((s) => (
+              {sources.map((s) => (
                 <div key={s.id} className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <Rss size={10} className="shrink-0" />
+                  {s.type === "rss" ? <Rss size={10} className="shrink-0" /> : <Newspaper size={10} className="shrink-0" />}
                   <span className="truncate flex-1">{s.name}</span>
                   <button onClick={() => deleteSource.mutate(s.id)} className="hover:text-destructive transition-colors">
                     <Trash2 size={10} />

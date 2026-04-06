@@ -10,7 +10,7 @@ import {
   Star,
   Newspaper,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 
@@ -47,6 +47,14 @@ function CollapsibleSection({
 }
 
 export default function Sidebar() {
+  const queryClient = useQueryClient();
+  const starProject = useMutation({
+    mutationFn: (id: string) => api.projects.star(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+
   const { data: projects } = useQuery({
     queryKey: ["projects"],
     queryFn: api.projects.list,
@@ -96,7 +104,12 @@ export default function Sidebar() {
                           : "text-muted-foreground hover:text-foreground hover:bg-card/50"
                       )}
                     >
-                      <Star size={13} className="shrink-0 fill-warning text-warning" />
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); starProject.mutate(p.id); }}
+                        className="shrink-0 hover:opacity-70 transition-opacity"
+                      >
+                        <Star size={13} className="fill-warning text-warning" />
+                      </button>
                       <span className="truncate">{p.name}</span>
                     </div>
                   )}
