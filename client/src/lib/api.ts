@@ -1,4 +1,4 @@
-import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note, Idea, FileRecord, DailySummary, LLMHealth, NewsItem, NewsSource } from "./types";
+import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note, Idea, FileRecord, DailySummary, LLMHealth, NewsItem, NewsSource, WhisperHealth, VoiceIdeaResult } from "./types";
 
 const BASE = "/api";
 
@@ -38,6 +38,20 @@ export const api = {
     delete: (id: string) => req<{ ok: true }>(`/ideas/${id}`, { method: "DELETE" }),
     promote: (id: string) =>
       req<{ idea: Idea; project: Project }>(`/ideas/${id}/promote`, { method: "POST" }),
+    voice: async (audioBlob: Blob): Promise<VoiceIdeaResult> => {
+      const form = new FormData();
+      form.append("audio", audioBlob, "voice-memo.webm");
+      const res = await fetch(`${BASE}/ideas/voice`, {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(body.error ?? res.statusText);
+      }
+      return res.json();
+    },
   },
   files: {
     list: (projectId?: string) =>
@@ -137,6 +151,7 @@ export const api = {
   },
   health: {
     llm: () => req<LLMHealth>("/health/llm"),
+    whisper: () => req<WhisperHealth>("/health/whisper"),
   },
   news: {
     list: (params?: { read?: string; source?: string }) => {

@@ -163,3 +163,16 @@ export interface NewsSource {
   enabled: 0 | 1;
   created_at: number;
 }
+
+export interface WhisperHealth {
+  available: boolean;
+  model: string;
+  error?: string;
+}
+
+export interface VoiceIdeaResult {
+  idea: Idea;
+  transcript: string;
+  audioFileId: string;
+  whisperAvailable: boolean;
+}
