@@ -6,6 +6,7 @@ import ideasRouter from "./routes/ideas.ts";
 import miscRouter from "./routes/misc.ts";
 import filesRouter from "./routes/files.ts";
 import dailySummaryRouter from "./routes/daily-summary.ts";
+import newsRouter from "./routes/news.ts";
 
 // Initialize DB (runs all CREATE TABLE IF NOT EXISTS on import)
 import "./db/index.ts";
@@ -22,6 +23,7 @@ app.route("/api/projects", projectsRouter);
 app.route("/api/ideas", ideasRouter);
 app.route("/api/files", filesRouter);
 app.route("/api/daily-summary", dailySummaryRouter);
+app.route("/api/news", newsRouter);
 app.route("/api", miscRouter);
 
 // Static files from client/dist
