@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { StageBadge, Empty, fmt, STAGE_META } from "@/components/app-ui";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import Markdown from "@/components/Markdown";
 import type { ProjectStage } from "@/lib/types";
 
 const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
@@ -260,7 +261,7 @@ export default function Dashboard() {
                     {item.title}
                   </a>
                   {item.summary && (
-                    <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-1">{item.summary}</p>
+                    <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-2">{item.summary}</p>
                   )}
                 </div>
               ))}
@@ -296,9 +297,7 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           {todaySummary ? (
-            <div className="text-[13px] text-muted-foreground whitespace-pre-wrap leading-relaxed">
-              {todaySummary.summary}
-            </div>
+            <Markdown content={todaySummary.summary} className="text-muted-foreground" />
           ) : llmHealth?.available === false ? (
             <div className="text-[12px] text-muted-foreground">
               <p>LLM not available. Start Ollama to enable daily summaries.</p>

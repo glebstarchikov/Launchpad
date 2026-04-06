@@ -209,7 +209,7 @@ export default function News() {
             {selected.summary && (
               <div className="bg-card border border-border rounded-lg p-4 mb-4">
                 <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-2 font-medium">AI Summary</p>
-                <p className="text-[13px] text-foreground leading-relaxed">{selected.summary}</p>
+                <Markdown content={selected.summary} className="text-foreground" />
               </div>
             )}
 
