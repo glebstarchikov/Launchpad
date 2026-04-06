@@ -85,7 +85,7 @@ export default function Ideas() {
   return (
     <div className="flex h-[calc(100vh-48px)]">
       {/* Left pane */}
-      <div className="w-[280px] border-r border-border flex flex-col shrink-0">
+      <div className="w-1/3 min-w-[280px] max-w-[400px] border-r border-border flex flex-col shrink-0">
         <div className="p-4 border-b border-border flex items-center justify-between">
           <h1 className="text-lg font-semibold">Ideas</h1>
           <Button size="sm" onClick={() => { setSelected(null); setComposing(true); }}>
@@ -167,7 +167,7 @@ function IdeaComposer({
   const [body, setBody] = useState("");
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-3xl">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-semibold text-foreground">New Idea</h2>
         <Button variant="ghost" size="sm" onClick={onCancel}>
@@ -233,7 +233,7 @@ function IdeaDetail({
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-3xl">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div className="flex-1 min-w-0">

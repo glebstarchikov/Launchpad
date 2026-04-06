@@ -71,7 +71,7 @@ export default function News() {
   return (
     <div className="flex h-[calc(100vh-48px)]">
       {/* Left pane — news list */}
-      <div className="w-[340px] border-r border-border flex flex-col shrink-0">
+      <div className="w-1/3 min-w-[300px] max-w-[420px] border-r border-border flex flex-col shrink-0">
         <div className="p-4 border-b border-border flex items-center justify-between">
           <h1 className="text-lg font-semibold">News</h1>
           <Button
@@ -195,7 +195,7 @@ export default function News() {
       {/* Right pane — article preview */}
       <div className="flex-1 p-6 overflow-auto">
         {selected ? (
-          <div className="max-w-2xl">
+          <div className="max-w-3xl">
             <h2 className="text-lg font-semibold mb-2">{selected.title}</h2>
             <div className="flex items-center gap-3 mb-4">
               <Badge variant="outline" className="text-[11px]">
