@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Empty } from "@/components/app-ui";
 import { api } from "@/lib/api";
+import Markdown from "@/components/Markdown";
 import type { NewsItem } from "@/lib/types";
 
 export default function News() {

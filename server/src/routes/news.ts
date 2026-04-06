@@ -53,6 +53,30 @@ async function fetchRSSFeed(feedUrl: string): Promise<RSSItem[]> {
   return items;
 }
 
+// --- Article Content Fetcher ---
+
+async function fetchArticleText(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(8000),
+      headers: { "User-Agent": "Launchpad/1.0 (news reader)" },
+    });
+    if (!res.ok) return "";
+    const html = await res.text();
+    // Strip HTML tags, scripts, styles to get plain text
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    // Return first 2000 chars to keep LLM prompt reasonable
+    return text.slice(0, 2000);
+  } catch {
+    return "";
+  }
+}
+
 // --- Relevance Scoring ---
 
 function getUserKeywords(userId: string): string[] {
@@ -160,15 +184,16 @@ router.post("/fetch", async (c) => {
 
   // Generate LLM summaries for top relevant items that don't have one yet
   const unsummarized = db.query<{ id: string; title: string; url: string | null }, [string]>(
-    "SELECT id, title, url FROM news_items WHERE user_id = ? AND summary IS NULL AND relevance_score > 0 ORDER BY relevance_score DESC LIMIT 10"
+    "SELECT id, title, url FROM news_items WHERE user_id = ? AND summary IS NULL ORDER BY relevance_score DESC LIMIT 10"
   ).all(userId);
 
   for (const item of unsummarized) {
     try {
-      const summary = await generateText(
-        `Summarize this article in 2-3 sentences for a software founder. Title: "${item.title}". URL: ${item.url ?? "no url"}. Focus on why this matters for someone building software products.`,
-        { maxTokens: 200, temperature: 0.3 }
-      );
+      const articleText = item.url ? await fetchArticleText(item.url) : "";
+      const prompt = articleText
+        ? `Summarize this article in 2-3 sentences for a software founder. Title: "${item.title}". Article content: ${articleText}. Focus on why this matters for someone building software products.`
+        : `Summarize this article in 2-3 sentences for a software founder based on the title. Title: "${item.title}". Focus on why this matters for someone building software products.`;
+      const summary = await generateText(prompt, { maxTokens: 200, temperature: 0.3 });
       db.run("UPDATE news_items SET summary = ? WHERE id = ?", [summary, item.id]);
     } catch {
       // LLM failed — skip summary, item still shows without it
