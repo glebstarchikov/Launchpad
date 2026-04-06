@@ -1,4 +1,4 @@
-import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note, Idea, FileRecord, DailySummary, LLMHealth } from "./types";
+import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note, Idea, FileRecord, DailySummary, LLMHealth, NewsItem, NewsSource } from "./types";
 
 const BASE = "/api";
 
@@ -137,5 +137,25 @@ export const api = {
   },
   health: {
     llm: () => req<LLMHealth>("/health/llm"),
+  },
+  news: {
+    list: (params?: { read?: string; source?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.read) q.set("read", params.read);
+      if (params?.source) q.set("source", params.source);
+      const qs = q.toString();
+      return req<NewsItem[]>(`/news${qs ? `?${qs}` : ""}`);
+    },
+    fetch: () =>
+      req<{ fetched: number; added: number; summarized: number }>("/news/fetch", { method: "POST" }),
+    markRead: (id: string) =>
+      req<{ ok: true }>(`/news/${id}/read`, { method: "PUT" }),
+    sources: {
+      list: () => req<NewsSource[]>("/news/sources"),
+      add: (data: { type: string; name: string; url?: string }) =>
+        req<NewsSource>("/news/sources", { method: "POST", body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        req<{ ok: true }>(`/news/sources/${id}`, { method: "DELETE" }),
+    },
   },
 };

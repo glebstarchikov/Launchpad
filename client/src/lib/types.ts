@@ -139,3 +139,27 @@ export interface LLMHealth {
   model: string;
   error?: string;
 }
+
+export interface NewsItem {
+  id: string;
+  user_id: string;
+  source: string;
+  source_id: string | null;
+  title: string;
+  url: string | null;
+  summary: string | null;
+  relevance_score: number | null;
+  relevance_reason: string | null;
+  read: 0 | 1;
+  created_at: number;
+}
+
+export interface NewsSource {
+  id: string;
+  user_id: string;
+  type: string;
+  name: string;
+  url: string | null;
+  enabled: 0 | 1;
+  created_at: number;
+}
