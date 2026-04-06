@@ -235,7 +235,13 @@ export default function Dashboard() {
       </Card>
 
       {/* Today's Signals */}
-      {newsItems && newsItems.length > 0 && (
+      {(() => {
+        const oneDayAgo = Date.now() - 86400000;
+        const relevant = (newsItems ?? []).filter(i => (i.relevance_score ?? 0) > 0);
+        const todaysSignals = relevant.filter(i => i.created_at >= oneDayAgo);
+        const signals = todaysSignals.length > 0 ? todaysSignals.slice(0, 5) : relevant.slice(0, 5);
+        if (signals.length === 0) return null;
+        return (
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -244,13 +250,13 @@ export default function Dashboard() {
                 Today's Signals
               </CardTitle>
               <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
-                {newsItems.filter(i => !i.read).length} unread
+                {signals.filter(i => !i.read).length} unread
               </span>
             </div>
           </CardHeader>
           <CardContent>
             <div className="divide-y divide-border">
-              {newsItems.filter(i => (i.relevance_score ?? 0) > 0).slice(0, 5).map((item) => (
+              {signals.map((item) => (
                 <div key={item.id} className="py-2.5 first:pt-0 last:pb-0">
                   <a
                     href={item.url ?? "#"}
@@ -268,7 +274,8 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
-      )}
+        );
+      })()}
 
       {/* Daily Summary */}
       <Card>
