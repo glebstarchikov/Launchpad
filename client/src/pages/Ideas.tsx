@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Empty } from "@/components/app-ui";
+import VoiceRecorder from "@/components/VoiceRecorder";
 
 export default function Ideas() {
   const navigate = useNavigate();
@@ -62,6 +63,16 @@ export default function Ideas() {
     },
   });
 
+  const voiceIdea = useMutation({
+    mutationFn: (audioBlob: Blob) => api.ideas.voice(audioBlob),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setComposing(false);
+      setSelected(result.idea);
+    },
+  });
+
   const handleSave = (title: string, body: string) => {
     if (!title.trim()) return;
     createIdea.mutate({ title: title.trim(), body: body.trim() });
@@ -88,9 +99,15 @@ export default function Ideas() {
       <div className="w-1/3 min-w-[280px] max-w-[400px] border-r border-border flex flex-col shrink-0">
         <div className="p-4 border-b border-border flex items-center justify-between">
           <h1 className="text-lg font-semibold">Ideas</h1>
-          <Button size="sm" onClick={() => { setSelected(null); setComposing(true); }}>
-            New
-          </Button>
+          <div className="flex items-center gap-2">
+            <VoiceRecorder
+              onRecorded={(blob) => voiceIdea.mutate(blob)}
+              isProcessing={voiceIdea.isPending}
+            />
+            <Button size="sm" onClick={() => { setSelected(null); setComposing(true); }}>
+              New
+            </Button>
+          </div>
         </div>
         <ScrollArea className="flex-1">
           {ideas.map((idea) => (
