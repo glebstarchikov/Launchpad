@@ -238,7 +238,7 @@ router.put("/:id/read", (c) => {
 // GET /api/news/sources — list sources
 router.get("/sources", (c) => {
   const userId = c.get("userId");
-  const sources = db.query("SELECT * FROM news_sources WHERE user_id = ? ORDER BY created_at", [userId]).all();
+  const sources = db.query("SELECT * FROM news_sources WHERE user_id = ? ORDER BY created_at").all(userId);
   return c.json(sources);
 });
 
