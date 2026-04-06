@@ -261,7 +261,7 @@ export default function Dashboard() {
                     {item.title}
                   </a>
                   {item.summary && (
-                    <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-2">{item.summary}</p>
+                    <Markdown content={item.summary} className="text-[12px] text-muted-foreground mt-0.5" />
                   )}
                 </div>
               ))}

@@ -27,6 +27,7 @@ export default function News() {
     mutationFn: api.news.fetch,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["news"] });
+      queryClient.invalidateQueries({ queryKey: ["news-sources"] });
     },
   });
 

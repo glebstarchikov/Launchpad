@@ -184,7 +184,7 @@ router.post("/fetch", async (c) => {
 
   // Generate LLM summaries for top relevant items that don't have one yet
   const unsummarized = db.query<{ id: string; title: string; url: string | null }, [string]>(
-    "SELECT id, title, url FROM news_items WHERE user_id = ? AND summary IS NULL ORDER BY relevance_score DESC LIMIT 10"
+    "SELECT id, title, url FROM news_items WHERE user_id = ? AND summary IS NULL AND relevance_score > 0 ORDER BY relevance_score DESC LIMIT 10"
   ).all(userId);
 
   for (const item of unsummarized) {
