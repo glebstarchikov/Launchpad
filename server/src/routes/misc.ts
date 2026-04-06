@@ -3,11 +3,17 @@ import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
 import type { Project, Idea } from "../types/index.ts";
 import { isLLMAvailable } from "../lib/llm.ts";
+import { isWhisperAvailable } from "../lib/whisper.ts";
 
 const router = new Hono<{ Variables: { userId: string } }>();
 
 router.get("/health/llm", async (c) => {
   const status = await isLLMAvailable();
+  return c.json(status);
+});
+
+router.get("/health/whisper", async (c) => {
+  const status = await isWhisperAvailable();
   return c.json(status);
 });
 
