@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight, Sparkles, Loader2 } from "lucide-react";
+import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight, Sparkles, Loader2, Newspaper } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { StageBadge, Empty, fmt, STAGE_META } from "@/components/app-ui";
@@ -37,6 +37,12 @@ export default function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["daily-summary", today] });
     },
+  });
+
+  const { data: newsItems } = useQuery({
+    queryKey: ["news"],
+    queryFn: () => api.news.list(),
+    staleTime: 60_000,
   });
 
   if (isLoading) {
@@ -226,6 +232,42 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Today's Signals */}
+      {newsItems && newsItems.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Newspaper size={14} className="text-info" />
+                Today's Signals
+              </CardTitle>
+              <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
+                {newsItems.filter(i => !i.read).length} unread
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="divide-y divide-border">
+              {newsItems.filter(i => (i.relevance_score ?? 0) > 0).slice(0, 5).map((item) => (
+                <div key={item.id} className="py-2.5 first:pt-0 last:pb-0">
+                  <a
+                    href={item.url ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[13px] font-medium hover:text-info transition-colors line-clamp-1"
+                  >
+                    {item.title}
+                  </a>
+                  {item.summary && (
+                    <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-1">{item.summary}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Daily Summary */}
       <Card>
