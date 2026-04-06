@@ -3,6 +3,7 @@ import { serveStatic } from "hono/bun";
 import authRouter from "./routes/auth.ts";
 import projectsRouter from "./routes/projects.ts";
 import ideasRouter from "./routes/ideas.ts";
+import voiceRouter from "./routes/voice.ts";
 import miscRouter from "./routes/misc.ts";
 import filesRouter from "./routes/files.ts";
 import dailySummaryRouter from "./routes/daily-summary.ts";
@@ -20,6 +21,7 @@ const app = new Hono();
 // API routes
 app.route("/api/auth", authRouter);
 app.route("/api/projects", projectsRouter);
+app.route("/api/ideas/voice", voiceRouter);
 app.route("/api/ideas", ideasRouter);
 app.route("/api/files", filesRouter);
 app.route("/api/daily-summary", dailySummaryRouter);
