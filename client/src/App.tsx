@@ -8,6 +8,7 @@ import Projects from "@/pages/Projects";
 import ProjectDetail from "@/pages/ProjectDetail";
 import Ideas from "@/pages/Ideas";
 import Files from "@/pages/Files";
+import News from "@/pages/News";
 
 export default function App() {
   const { data: user, isLoading } = useQuery({
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/projects/:id" element={<ProjectDetail />} />
         <Route path="/ideas" element={<Ideas />} />
         <Route path="/files" element={<Files />} />
+        <Route path="/news" element={<News />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

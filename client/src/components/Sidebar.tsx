@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronRight,
   Star,
+  Newspaper,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ const NAV = [
   { to: "/", icon: LayoutDashboard, label: "Home" },
   { to: "/projects", icon: FolderKanban, label: "Projects" },
   { to: "/ideas", icon: Lightbulb, label: "Ideas" },
+  { to: "/news", icon: Newspaper, label: "News" },
   { to: "/files", icon: Files, label: "Files" },
 ];
 
