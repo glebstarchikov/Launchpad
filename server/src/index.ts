@@ -8,6 +8,7 @@ import miscRouter from "./routes/misc.ts";
 import filesRouter from "./routes/files.ts";
 import dailySummaryRouter from "./routes/daily-summary.ts";
 import newsRouter from "./routes/news.ts";
+import githubRouter from "./routes/github.ts";
 import { startPolling } from "./lib/telegram.ts";
 import { startCron } from "./lib/cron.ts";
 
@@ -28,6 +29,7 @@ app.route("/api/ideas", ideasRouter);
 app.route("/api/files", filesRouter);
 app.route("/api/daily-summary", dailySummaryRouter);
 app.route("/api/news", newsRouter);
+app.route("/api/github", githubRouter);
 app.route("/api", miscRouter);
 
 // Static files from client/dist
