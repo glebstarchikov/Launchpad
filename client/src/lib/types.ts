@@ -23,6 +23,7 @@ export interface Project {
   created_at: number;
   updated_at: number;
   starred: 0 | 1;
+  github_repo: string | null;
 }
 
 export interface ProjectLink {
@@ -175,4 +176,48 @@ export interface VoiceIdeaResult {
   transcript: string;
   audioFileId: string;
   whisperAvailable: boolean;
+}
+
+export interface GitHubCommit {
+  sha: string;
+  message: string;
+  author: string;
+  date: string;
+  url: string;
+}
+
+export interface GitHubPR {
+  number: number;
+  title: string;
+  state: string;
+  author: string;
+  created_at: string;
+  url: string;
+}
+
+export interface GitHubIssue {
+  number: number;
+  title: string;
+  state: string;
+  labels: string[];
+  created_at: string;
+  url: string;
+}
+
+export interface GitHubRepoData {
+  connected: boolean;
+  repo: string | null;
+  commits: GitHubCommit[];
+  prs: GitHubPR[];
+  issues: GitHubIssue[];
+  error?: string;
+}
+
+export interface GitHubActivity {
+  project: string;
+  sha: string;
+  message: string;
+  author: string;
+  date: string;
+  url: string;
 }

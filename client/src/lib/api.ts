@@ -1,4 +1,4 @@
-import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note, Idea, FileRecord, DailySummary, LLMHealth, NewsItem, NewsSource, WhisperHealth, VoiceIdeaResult } from "./types";
+import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note, Idea, FileRecord, DailySummary, LLMHealth, NewsItem, NewsSource, WhisperHealth, VoiceIdeaResult, GitHubRepoData, GitHubActivity } from "./types";
 
 const BASE = "/api";
 
@@ -172,5 +172,13 @@ export const api = {
       delete: (id: string) =>
         req<{ ok: true }>(`/news/sources/${id}`, { method: "DELETE" }),
     },
+  },
+  github: {
+    getRepoData: (projectId: string) =>
+      req<GitHubRepoData>(`/github/${projectId}`),
+    setRepo: (projectId: string, github_repo: string | null) =>
+      req<Project>(`/github/${projectId}`, { method: "PUT", body: JSON.stringify({ github_repo }) }),
+    activity: () =>
+      req<GitHubActivity[]>("/github/activity"),
   },
 };
