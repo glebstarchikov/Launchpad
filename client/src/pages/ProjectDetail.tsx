@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen, ChevronRight, ExternalLink, Pencil, Plus, RefreshCw, Trash2, X, Check, Star,
+  Github, GitCommit, GitPullRequest, CircleDot,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,7 +23,7 @@ import { StageBadge, TypeBadge, TagInput, PingDot, fmt, Empty } from "@/componen
 import FilesView from "@/components/FilesView";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, ProjectCountry, LegalItem, Note } from "@/lib/types";
+import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, ProjectCountry, LegalItem, Note, GitHubRepoData } from "@/lib/types";
 
 const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
 const TYPES: ProjectType[] = ["for-profit", "open-source"];
@@ -51,6 +52,12 @@ export default function ProjectDetail() {
     },
   });
 
+  const { data: githubData } = useQuery({
+    queryKey: ["github", id],
+    queryFn: () => api.github.getRepoData(id!),
+    enabled: !!id,
+  });
+
   if (isLoading) return <div className="p-8 text-muted-foreground">Loading...</div>;
   if (!project) return <div className="p-8 text-destructive">Project not found.</div>;
 
@@ -60,6 +67,7 @@ export default function ProjectDetail() {
     ...(project.type === "for-profit" ? [{ value: "revenue", label: "Revenue" }] : []),
     { value: "compliance", label: "Compliance" },
     { value: "buildlog", label: "Build Log" },
+    { value: "github", label: "GitHub" },
     { value: "files", label: "Files" },
   ];
 
@@ -140,6 +148,9 @@ export default function ProjectDetail() {
           </TabsContent>
           <TabsContent value="buildlog" className="mt-0">
             <BuildLogTab id={id!} queryClient={queryClient} />
+          </TabsContent>
+          <TabsContent value="github" className="mt-0">
+            <GitHubTab projectId={id!} githubData={githubData} />
           </TabsContent>
           <TabsContent value="files" className="mt-0">
             <div className="p-4">
@@ -1297,5 +1308,146 @@ function DangerZoneCard({ project, id, queryClient, navigate }: { project: Proje
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function GitHubTab({ projectId, githubData }: { projectId: string; githubData: GitHubRepoData | undefined }) {
+  const queryClient = useQueryClient();
+  const [repoInput, setRepoInput] = useState(githubData?.repo ?? "");
+
+  const setRepo = useMutation({
+    mutationFn: (repo: string) => api.github.setRepo(projectId, repo || null),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["github", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["projects", projectId] });
+    },
+  });
+
+  if (!githubData?.connected) {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium mb-2">Connect GitHub Repository</h3>
+        <div className="flex gap-2">
+          <Input
+            value={repoInput}
+            onChange={(e) => setRepoInput(e.target.value)}
+            placeholder="owner/repo"
+            className="max-w-xs"
+          />
+          <Button
+            size="sm"
+            onClick={() => setRepo.mutate(repoInput)}
+            disabled={!repoInput.trim() || setRepo.isPending}
+          >
+            Connect
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">Enter the GitHub repo slug, e.g. "myuser/myproject"</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Github size={14} />
+          <a href={`https://github.com/${githubData.repo}`} target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+            {githubData.repo}
+          </a>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => setRepo.mutate("")} className="text-xs text-muted-foreground">
+          Disconnect
+        </Button>
+      </div>
+
+      {githubData.error && (
+        <p className="text-xs text-destructive">{githubData.error}</p>
+      )}
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <GitCommit size={14} />
+            Recent Commits
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {githubData.commits.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No recent commits.</p>
+          ) : (
+            <div className="space-y-2">
+              {githubData.commits.map((c) => (
+                <div key={c.sha} className="flex items-start gap-2">
+                  <code className="text-[11px] text-muted-foreground font-mono shrink-0">{c.sha}</code>
+                  <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-[13px] hover:text-info transition-colors line-clamp-1 flex-1">
+                    {c.message}
+                  </a>
+                  <span className="text-[11px] text-muted-foreground shrink-0">{c.author}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <GitPullRequest size={14} />
+            Pull Requests
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {githubData.prs.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No pull requests.</p>
+          ) : (
+            <div className="space-y-2">
+              {githubData.prs.map((pr) => (
+                <div key={pr.number} className="flex items-center gap-2">
+                  <Badge variant="outline" className={cn("text-[10px]", pr.state === "open" ? "border-success/30 text-success" : "border-purple/30 text-purple")}>
+                    {pr.state}
+                  </Badge>
+                  <a href={pr.url} target="_blank" rel="noopener noreferrer" className="text-[13px] hover:text-info transition-colors line-clamp-1 flex-1">
+                    #{pr.number} {pr.title}
+                  </a>
+                  <span className="text-[11px] text-muted-foreground shrink-0">{pr.author}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CircleDot size={14} />
+            Issues
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {githubData.issues.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No issues.</p>
+          ) : (
+            <div className="space-y-2">
+              {githubData.issues.map((issue) => (
+                <div key={issue.number} className="flex items-center gap-2">
+                  <Badge variant="outline" className={cn("text-[10px]", issue.state === "open" ? "border-success/30 text-success" : "border-muted-foreground/30")}>
+                    {issue.state}
+                  </Badge>
+                  <a href={issue.url} target="_blank" rel="noopener noreferrer" className="text-[13px] hover:text-info transition-colors line-clamp-1 flex-1">
+                    #{issue.number} {issue.title}
+                  </a>
+                  {issue.labels.slice(0, 2).map((l) => (
+                    <Badge key={l} variant="outline" className="text-[9px] px-1">{l}</Badge>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
