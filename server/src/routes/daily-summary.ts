@@ -168,4 +168,12 @@ router.get("/:date", (c) => {
   return c.json(summary);
 });
 
+// DELETE /api/daily-summary/:date — delete so it can be regenerated
+router.delete("/:date", (c) => {
+  const userId = c.get("userId");
+  const dateStr = c.req.param("date");
+  db.run("DELETE FROM daily_summaries WHERE user_id = ? AND date = ?", [userId, dateStr]);
+  return c.json({ ok: true });
+});
+
 export default router;

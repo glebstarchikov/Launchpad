@@ -111,23 +111,29 @@ function scoreRelevance(title: string, url: string | null, keywords: string[]): 
 export async function fetchNewsForUser(userId: string) {
   const keywords = getUserKeywords(userId);
 
-  // Ensure default HN source exists
-  const hnSource = db.query<{ id: string }, [string]>(
-    "SELECT id FROM news_sources WHERE user_id = ? AND type = 'hackernews'"
+  // Create default HN source only if user has NO sources at all (first-time setup)
+  const sourceCount = db.query<{ n: number }, [string]>(
+    "SELECT COUNT(*) as n FROM news_sources WHERE user_id = ?"
   ).get(userId);
-  if (!hnSource) {
+  if (sourceCount?.n === 0) {
     db.run(
       "INSERT INTO news_sources (id, user_id, type, name, url, enabled, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
       [crypto.randomUUID(), userId, "hackernews", "Hacker News", null, 1, Date.now()]
     );
   }
 
-  // Fetch HN stories
-  let stories: HNHit[];
-  try {
-    stories = await fetchHNStories();
-  } catch (e: any) {
-    throw new Error(`Failed to fetch HN: ${e.message}`);
+  // Fetch HN stories (only if HN source exists and is enabled)
+  const hnSource = db.query<{ id: string }, [string]>(
+    "SELECT id FROM news_sources WHERE user_id = ? AND type = 'hackernews' AND enabled = 1"
+  ).get(userId);
+
+  let stories: HNHit[] = [];
+  if (hnSource) {
+    try {
+      stories = await fetchHNStories();
+    } catch (e: any) {
+      console.error(`Failed to fetch HN: ${e.message}`);
+    }
   }
 
   let added = 0;

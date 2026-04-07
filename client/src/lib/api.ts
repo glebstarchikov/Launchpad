@@ -148,6 +148,7 @@ export const api = {
       }),
     list: () => req<DailySummary[]>("/daily-summary"),
     get: (date: string) => req<DailySummary>(`/daily-summary/${date}`),
+    delete: (date: string) => req<{ ok: true }>(`/daily-summary/${date}`, { method: "DELETE" }),
   },
   health: {
     llm: () => req<LLMHealth>("/health/llm"),

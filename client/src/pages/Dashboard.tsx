@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight, Sparkles, Loader2, Newspaper, ChevronDown, ChevronUp, GitCommit } from "lucide-react";
+import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight, Sparkles, Loader2, Newspaper, ChevronDown, ChevronUp, GitCommit, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { StageBadge, Empty, fmt, STAGE_META } from "@/components/app-ui";
@@ -98,10 +98,27 @@ export default function Dashboard() {
     },
   });
 
+  const regenerateSummary = useMutation({
+    mutationFn: async () => {
+      await api.dailySummary.delete(today);
+      return api.dailySummary.generate(today);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["daily-summary", today] });
+    },
+  });
+
   const { data: newsItems } = useQuery({
     queryKey: ["news"],
     queryFn: () => api.news.list(),
     staleTime: 60_000,
+  });
+
+  const refreshNews = useMutation({
+    mutationFn: api.news.fetch,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["news"] });
+    },
   });
 
   const { data: githubActivity } = useQuery({
@@ -243,7 +260,7 @@ export default function Dashboard() {
               <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{projectCount}</span>
             </div>
           </CardHeader>
-          <CardContent className="flex-1 min-h-0 overflow-y-auto">
+          <CardContent className={cn("flex-1 min-h-0", recentProjects.length > 0 && "overflow-y-auto")}>
             {recentProjects.length === 0 ? (
               <Empty icon={<FolderKanban size={20} />} title="No projects yet" />
             ) : (
@@ -328,6 +345,18 @@ export default function Dashboard() {
           icon={<Newspaper size={14} className="text-info" />}
           count={`${signals.filter(i => !i.read).length} unread`}
           isEmpty={false}
+          action={
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => refreshNews.mutate()}
+              disabled={refreshNews.isPending}
+              className="h-6 text-[11px] px-2"
+            >
+              <RefreshCw size={10} className={cn("mr-1", refreshNews.isPending && "animate-spin")} />
+              Refresh
+            </Button>
+          }
         >
           <div className="divide-y divide-border">
             {signals.map((item) => (
@@ -363,20 +392,36 @@ export default function Dashboard() {
           />
         }
         action={
-          !todaySummary && llmHealth?.available ? (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => generateSummary.mutate()}
-              disabled={generateSummary.isPending}
-              className="h-7 text-xs"
-            >
-              {generateSummary.isPending ? (
-                <><Loader2 size={12} className="animate-spin mr-1" /> Generating...</>
-              ) : (
-                "Generate"
-              )}
-            </Button>
+          llmHealth?.available ? (
+            todaySummary ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => regenerateSummary.mutate()}
+                disabled={regenerateSummary.isPending}
+                className="h-6 text-[11px] px-2"
+              >
+                {regenerateSummary.isPending ? (
+                  <><Loader2 size={10} className="animate-spin mr-1" /> Regenerating...</>
+                ) : (
+                  <><RefreshCw size={10} className="mr-1" /> Regenerate</>
+                )}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => generateSummary.mutate()}
+                disabled={generateSummary.isPending}
+                className="h-7 text-xs"
+              >
+                {generateSummary.isPending ? (
+                  <><Loader2 size={12} className="animate-spin mr-1" /> Generating...</>
+                ) : (
+                  "Generate"
+                )}
+              </Button>
+            )
           ) : undefined
         }
       >
