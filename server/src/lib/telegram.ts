@@ -73,6 +73,10 @@ function createIdeaFromMessage(userId: string, text: string) {
 async function processUpdate(update: any) {
   if (!update.message?.text) return;
 
+  // Only accept messages from the configured chat ID
+  const chatId = String(update.message.chat?.id);
+  if (chatId !== CHAT_ID) return;
+
   const text = update.message.text.trim();
   if (!text || text.startsWith("/start")) {
     await sendMessage("👋 Send me a message and I'll save it as an idea in Launchpad.");
