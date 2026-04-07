@@ -51,7 +51,11 @@ async function getUpdates(): Promise<any[]> {
 }
 
 function getUserId(): string | null {
-  const user = db.query<{ id: string }, []>("SELECT id FROM users ORDER BY updated_at DESC LIMIT 1").get();
+  // Single-user app — use LAUNCHPAD_USER_EMAIL if set, otherwise first user
+  const email = process.env.LAUNCHPAD_USER_EMAIL;
+  const user = email
+    ? db.query<{ id: string }, [string]>("SELECT id FROM users WHERE email = ?").get(email)
+    : db.query<{ id: string }, []>("SELECT id FROM users LIMIT 1").get();
   return user?.id ?? null;
 }
 

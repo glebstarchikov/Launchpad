@@ -59,7 +59,11 @@ function getRecentNews(userId: string): Array<{ title: string; summary: string |
 async function sendMorningBriefing() {
   if (!isTelegramConfigured()) return;
 
-  const user = db.query("SELECT id, name FROM users ORDER BY updated_at DESC LIMIT 1").get() as { id: string; name: string } | null;
+  const email = process.env.LAUNCHPAD_USER_EMAIL;
+  const user = (email
+    ? db.query("SELECT id, name FROM users WHERE email = ?").get(email)
+    : db.query("SELECT id, name FROM users LIMIT 1").get()
+  ) as { id: string; name: string } | null;
   if (!user) return;
 
   const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
