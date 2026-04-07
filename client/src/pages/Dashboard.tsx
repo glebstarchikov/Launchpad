@@ -190,7 +190,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Pipeline */}
-        <Card className="lg:col-span-2 h-[160px] overflow-hidden">
+        <Card className="lg:col-span-2 h-[170px] overflow-hidden">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium">Pipeline</CardTitle>
@@ -230,18 +230,18 @@ export default function Dashboard() {
         </Card>
 
         {/* Recent Projects — fixed height, scrollable */}
-        <Card className="flex flex-col h-[160px]">
+        <Card className="h-[170px] overflow-hidden flex flex-col">
           <CardHeader className="pb-3 shrink-0">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium">Recent Projects</CardTitle>
               <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{projectCount}</span>
             </div>
           </CardHeader>
-          <CardContent className="flex-1 min-h-0">
+          <CardContent className="flex-1 min-h-0 overflow-y-auto">
             {recentProjects.length === 0 ? (
               <Empty icon={<FolderKanban size={20} />} title="No projects yet" />
             ) : (
-              <div className="-mx-2 h-full overflow-y-auto">
+              <div className="-mx-2">
                 {recentProjects.map((project) => (
                   <button
                     key={project.id}
