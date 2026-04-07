@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight, Sparkles, Loader2, Newspaper, ChevronDown, ChevronUp } from "lucide-react";
+import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight, Sparkles, Loader2, Newspaper, ChevronDown, ChevronUp, GitCommit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { StageBadge, Empty, fmt, STAGE_META } from "@/components/app-ui";
@@ -101,6 +101,12 @@ export default function Dashboard() {
   const { data: newsItems } = useQuery({
     queryKey: ["news"],
     queryFn: () => api.news.list(),
+    staleTime: 60_000,
+  });
+
+  const { data: githubActivity } = useQuery({
+    queryKey: ["github", "activity"],
+    queryFn: api.github.activity,
     staleTime: 60_000,
   });
 
@@ -261,6 +267,34 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* GitHub Activity */}
+      {githubActivity && githubActivity.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <GitCommit size={14} />
+                Today's Commits
+              </CardTitle>
+              <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{githubActivity.length}</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-[200px] overflow-y-auto">
+              {githubActivity.slice(0, 8).map((c) => (
+                <div key={c.sha} className="flex items-start gap-2">
+                  <code className="text-[11px] text-muted-foreground font-mono shrink-0">{c.sha}</code>
+                  <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-[13px] hover:text-info transition-colors line-clamp-1 flex-1">
+                    {c.message}
+                  </a>
+                  <span className="text-[11px] text-muted-foreground shrink-0">{c.project}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Idea Inbox — fixed height, expandable */}
       <ExpandableCard
