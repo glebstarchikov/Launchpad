@@ -2,11 +2,12 @@ import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
 import { generateText, isLLMAvailable } from "../lib/llm.ts";
+import { getCommits } from "../lib/github.ts";
 
 const router = new Hono<{ Variables: { userId: string } }>();
 router.use("*", requireAuth);
 
-function collectActivity(userId: string, dateStr: string) {
+async function collectActivity(userId: string, dateStr: string) {
   const start = new Date(`${dateStr}T00:00:00`).getTime();
   const end = start + 86400000;
 
@@ -52,10 +53,24 @@ function collectActivity(userId: string, dateStr: string) {
     WHERE p.user_id = ? AND m.recorded_at >= ? AND m.recorded_at < ?
   `).all(userId, start, end);
 
-  return { projectsUpdated, checklistCompleted, techDebtResolved, notesAdded, ideasCreated, ideasPromoted, goalsProgress, mrrEntries };
+  const projectsWithGH = db.query<{ name: string; github_repo: string }, [string]>(
+    "SELECT name, github_repo FROM projects WHERE user_id = ? AND github_repo IS NOT NULL"
+  ).all(userId);
+
+  const githubCommits: Array<{ project: string; message: string; author: string }> = [];
+  for (const p of projectsWithGH) {
+    try {
+      const commits = await getCommits(p.github_repo, `${dateStr}T00:00:00Z`);
+      for (const c of commits) {
+        githubCommits.push({ project: p.name, message: c.message, author: c.author });
+      }
+    } catch {}
+  }
+
+  return { projectsUpdated, checklistCompleted, techDebtResolved, notesAdded, ideasCreated, ideasPromoted, goalsProgress, mrrEntries, githubCommits };
 }
 
-function buildPrompt(activity: ReturnType<typeof collectActivity>, dateStr: string): string {
+function buildPrompt(activity: Awaited<ReturnType<typeof collectActivity>>, dateStr: string): string {
   const sections: string[] = [];
 
   if (activity.projectsUpdated.length > 0)
@@ -74,6 +89,8 @@ function buildPrompt(activity: ReturnType<typeof collectActivity>, dateStr: stri
     sections.push(`Goals: ${activity.goalsProgress.map(g => `${g.description}: ${g.current_value}/${g.target_value}${g.unit ? ` ${g.unit}` : ""} (${g.project_name})`).join(", ")}`);
   if (activity.mrrEntries.length > 0)
     sections.push(`MRR logged: ${activity.mrrEntries.map(m => `$${m.mrr} / ${m.user_count} users (${m.project_name})`).join(", ")}`);
+  if (activity.githubCommits.length > 0)
+    sections.push(`GitHub commits: ${activity.githubCommits.map(c => `${c.message} (${c.project}, by ${c.author})`).join("; ")}`);
 
   if (sections.length === 0) return "";
 
@@ -112,7 +129,7 @@ router.post("/generate", async (c) => {
     return c.json({ error: "LLM not available. Make sure Ollama is running.", details: llmStatus.error }, 503);
   }
 
-  const activity = collectActivity(userId, dateStr);
+  const activity = await collectActivity(userId, dateStr);
   const prompt = buildPrompt(activity, dateStr);
 
   if (!prompt) {
