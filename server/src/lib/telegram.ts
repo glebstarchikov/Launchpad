@@ -51,7 +51,7 @@ async function getUpdates(): Promise<any[]> {
 }
 
 function getUserId(): string | null {
-  const user = db.query<{ id: string }, []>("SELECT id FROM users LIMIT 1").get();
+  const user = db.query<{ id: string }, []>("SELECT id FROM users ORDER BY updated_at DESC LIMIT 1").get();
   return user?.id ?? null;
 }
 
