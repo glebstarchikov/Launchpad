@@ -8,6 +8,8 @@ import miscRouter from "./routes/misc.ts";
 import filesRouter from "./routes/files.ts";
 import dailySummaryRouter from "./routes/daily-summary.ts";
 import newsRouter from "./routes/news.ts";
+import { startPolling } from "./lib/telegram.ts";
+import { startCron } from "./lib/cron.ts";
 
 // Initialize DB (runs all CREATE TABLE IF NOT EXISTS on import)
 import "./db/index.ts";
@@ -38,3 +40,7 @@ const port = Number(process.env.PORT ?? 3001);
 console.log(`Launchpad running at http://localhost:${port}`);
 
 export default { port, fetch: app.fetch };
+
+// Start background services (Telegram bot + morning cron)
+startPolling();
+startCron();
