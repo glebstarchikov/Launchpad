@@ -190,7 +190,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Pipeline */}
-        <Card className="lg:col-span-2 h-[220px] overflow-hidden">
+        <Card className="lg:col-span-2 h-[160px] overflow-hidden">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium">Pipeline</CardTitle>
@@ -230,7 +230,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Recent Projects — fixed height, scrollable */}
-        <Card className="flex flex-col h-[220px]">
+        <Card className="flex flex-col h-[160px]">
           <CardHeader className="pb-3 shrink-0">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium">Recent Projects</CardTitle>
