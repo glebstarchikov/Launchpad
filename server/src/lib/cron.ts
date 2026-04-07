@@ -1,6 +1,7 @@
 import { db } from "../db/index.ts";
 import { generateText, isLLMAvailable } from "./llm.ts";
 import { sendMessage, isTelegramConfigured } from "./telegram.ts";
+import { fetchNewsForUser } from "../routes/news.ts";
 
 function collectYesterdayActivity(userId: string, dateStr: string) {
   const start = new Date(`${dateStr}T00:00:00`).getTime();
@@ -65,6 +66,14 @@ async function sendMorningBriefing() {
     : db.query("SELECT id, name FROM users LIMIT 1").get()
   ) as { id: string; name: string } | null;
   if (!user) return;
+
+  // Fetch fresh news before building the briefing
+  try {
+    await fetchNewsForUser(user.id);
+    console.log("[CRON] News fetched successfully");
+  } catch (e: any) {
+    console.error("[CRON] News fetch failed:", e.message);
+  }
 
   const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
   let msg = `☀️ *Good morning, ${user.name}!*\n\n`;

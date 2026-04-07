@@ -106,11 +106,9 @@ function scoreRelevance(title: string, url: string | null, keywords: string[]): 
   return { score, reason: `matches: ${matches.join(", ")}` };
 }
 
-// --- Routes ---
+// --- Shared fetch logic (used by route + cron) ---
 
-// POST /api/news/fetch — fetch news from all enabled sources
-router.post("/fetch", async (c) => {
-  const userId = c.get("userId");
+export async function fetchNewsForUser(userId: string) {
   const keywords = getUserKeywords(userId);
 
   // Ensure default HN source exists
@@ -129,7 +127,7 @@ router.post("/fetch", async (c) => {
   try {
     stories = await fetchHNStories();
   } catch (e: any) {
-    return c.json({ error: `Failed to fetch HN: ${e.message}` }, 502);
+    throw new Error(`Failed to fetch HN: ${e.message}`);
   }
 
   let added = 0;
@@ -200,7 +198,20 @@ router.post("/fetch", async (c) => {
     }
   }
 
-  return c.json({ fetched: stories.length, added, summarized: unsummarized.length });
+  return { fetched: stories.length, added, summarized: unsummarized.length };
+}
+
+// --- Routes ---
+
+// POST /api/news/fetch
+router.post("/fetch", async (c) => {
+  const userId = c.get("userId");
+  try {
+    const result = await fetchNewsForUser(userId);
+    return c.json(result);
+  } catch (e: any) {
+    return c.json({ error: e.message }, 502);
+  }
 });
 
 // GET /api/news — list news items
