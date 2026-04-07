@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight, Sparkles, Loader2, Newspaper } from "lucide-react";
+import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight, Sparkles, Loader2, Newspaper, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { StageBadge, Empty, fmt, STAGE_META } from "@/components/app-ui";
@@ -10,6 +11,63 @@ import Markdown from "@/components/Markdown";
 import type { ProjectStage } from "@/lib/types";
 
 const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
+
+function ExpandableCard({
+  title,
+  icon,
+  count,
+  isEmpty,
+  emptyContent,
+  action,
+  children,
+}: {
+  title: string;
+  icon?: React.ReactNode;
+  count?: string | number;
+  isEmpty?: boolean;
+  emptyContent?: React.ReactNode;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            {icon}
+            {title}
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            {count !== undefined && (
+              <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{count}</span>
+            )}
+            {action}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isEmpty ? (
+          emptyContent
+        ) : (
+          <>
+            <div className={expanded ? "" : "max-h-[200px] overflow-y-auto"}>
+              {children}
+            </div>
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors mt-2 w-full justify-center"
+            >
+              {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              {expanded ? "Show less" : "Show more"}
+            </button>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -171,7 +229,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Projects */}
+        {/* Recent Projects — fixed height, scrollable */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -183,7 +241,7 @@ export default function Dashboard() {
             {recentProjects.length === 0 ? (
               <Empty icon={<FolderKanban size={20} />} title="No projects yet" />
             ) : (
-              <div className="-mx-2">
+              <div className="-mx-2 max-h-[200px] overflow-y-auto">
                 {recentProjects.map((project) => (
                   <button
                     key={project.id}
@@ -204,35 +262,24 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Idea Inbox */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium">Idea Inbox</CardTitle>
-            <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{ideaCount}</span>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {recentIdeas.length === 0 ? (
-            <Empty
-              icon={<Lightbulb size={20} />}
-              title="No ideas yet"
-              sub="Capture raw ideas before they slip away."
-            />
-          ) : (
-            <div className="divide-y divide-border">
-              {recentIdeas.map((idea) => (
-                <div key={idea.id} className="py-3 first:pt-0 last:pb-0">
-                  <p className="text-[13px] font-medium">{idea.title}</p>
-                  {idea.body && (
-                    <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-1">{idea.body}</p>
-                  )}
-                </div>
-              ))}
+      {/* Idea Inbox — fixed height, expandable */}
+      <ExpandableCard
+        title="Idea Inbox"
+        count={ideaCount}
+        isEmpty={recentIdeas.length === 0}
+        emptyContent={<Empty icon={<Lightbulb size={20} />} title="No ideas yet" sub="Capture raw ideas before they slip away." />}
+      >
+        <div className="divide-y divide-border">
+          {recentIdeas.map((idea) => (
+            <div key={idea.id} className="py-3 first:pt-0 last:pb-0">
+              <p className="text-[13px] font-medium">{idea.title}</p>
+              {idea.body && (
+                <p className="text-[12px] text-muted-foreground mt-0.5 line-clamp-1">{idea.body}</p>
+              )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      </ExpandableCard>
 
       {/* Today's Signals */}
       {(() => {
@@ -242,87 +289,76 @@ export default function Dashboard() {
         const signals = todaysSignals.length > 0 ? todaysSignals.slice(0, 5) : relevant.slice(0, 5);
         if (signals.length === 0) return null;
         return (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Newspaper size={14} className="text-info" />
-                Today's Signals
-              </CardTitle>
-              <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
-                {signals.filter(i => !i.read).length} unread
-              </span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="divide-y divide-border">
-              {signals.map((item) => (
-                <div key={item.id} className="py-2.5 first:pt-0 last:pb-0">
-                  <a
-                    href={item.url ?? "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[13px] font-medium hover:text-info transition-colors line-clamp-1"
-                  >
-                    {item.title}
-                  </a>
-                  {item.summary && (
-                    <Markdown content={item.summary} className="text-[12px] text-muted-foreground mt-0.5" />
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <ExpandableCard
+          title="Today's Signals"
+          icon={<Newspaper size={14} className="text-info" />}
+          count={`${signals.filter(i => !i.read).length} unread`}
+          isEmpty={false}
+        >
+          <div className="divide-y divide-border">
+            {signals.map((item) => (
+              <div key={item.id} className="py-2.5 first:pt-0 last:pb-0">
+                <a
+                  href={item.url ?? "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[13px] font-medium hover:text-info transition-colors line-clamp-1"
+                >
+                  {item.title}
+                </a>
+                {item.summary && (
+                  <Markdown content={item.summary} className="text-[12px] text-muted-foreground mt-0.5" />
+                )}
+              </div>
+            ))}
+          </div>
+        </ExpandableCard>
         );
       })()}
 
-      {/* Daily Summary */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Sparkles size={14} className="text-purple" />
-              Daily Summary
-            </CardTitle>
-            {!todaySummary && llmHealth?.available && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => generateSummary.mutate()}
-                disabled={generateSummary.isPending}
-                className="h-7 text-xs"
-              >
-                {generateSummary.isPending ? (
-                  <><Loader2 size={12} className="animate-spin mr-1" /> Generating...</>
-                ) : (
-                  "Generate"
-                )}
-              </Button>
-            )}
+      {/* Daily Summary — expandable */}
+      <ExpandableCard
+        title="Daily Summary"
+        icon={<Sparkles size={14} className="text-purple" />}
+        isEmpty={!todaySummary && !generateSummary.isError && llmHealth?.available !== false}
+        emptyContent={
+          <Empty
+            icon={<Sparkles size={20} />}
+            title="No summary yet"
+            sub={llmHealth?.available ? "Click Generate to create today's digest." : "Checking LLM availability..."}
+          />
+        }
+        action={
+          !todaySummary && llmHealth?.available ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => generateSummary.mutate()}
+              disabled={generateSummary.isPending}
+              className="h-7 text-xs"
+            >
+              {generateSummary.isPending ? (
+                <><Loader2 size={12} className="animate-spin mr-1" /> Generating...</>
+              ) : (
+                "Generate"
+              )}
+            </Button>
+          ) : undefined
+        }
+      >
+        {todaySummary ? (
+          <Markdown content={todaySummary.summary} className="text-muted-foreground" />
+        ) : llmHealth?.available === false ? (
+          <div className="text-[12px] text-muted-foreground">
+            <p>LLM not available. Start Ollama to enable daily summaries.</p>
+            <p className="text-[11px] mt-1 font-mono text-muted-foreground/60">ollama serve && ollama pull llama3.1</p>
           </div>
-        </CardHeader>
-        <CardContent>
-          {todaySummary ? (
-            <Markdown content={todaySummary.summary} className="text-muted-foreground" />
-          ) : llmHealth?.available === false ? (
-            <div className="text-[12px] text-muted-foreground">
-              <p>LLM not available. Start Ollama to enable daily summaries.</p>
-              <p className="text-[11px] mt-1 font-mono text-muted-foreground/60">ollama serve && ollama pull llama3.1</p>
-            </div>
-          ) : generateSummary.isError ? (
-            <p className="text-[12px] text-destructive">
-              {(generateSummary.error as any)?.message ?? "Failed to generate summary."}
-            </p>
-          ) : (
-            <Empty
-              icon={<Sparkles size={20} />}
-              title="No summary yet"
-              sub={llmHealth?.available ? "Click Generate to create today's digest." : "Checking LLM availability..."}
-            />
-          )}
-        </CardContent>
-      </Card>
+        ) : generateSummary.isError ? (
+          <p className="text-[12px] text-destructive">
+            {(generateSummary.error as any)?.message ?? "Failed to generate summary."}
+          </p>
+        ) : null}
+      </ExpandableCard>
     </div>
   );
 }
