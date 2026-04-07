@@ -164,6 +164,8 @@ export const api = {
     },
     fetch: () =>
       req<{ fetched: number; added: number; summarized: number }>("/news/fetch", { method: "POST" }),
+    clearAll: () =>
+      req<{ ok: true }>("/news", { method: "DELETE" }),
     markRead: (id: string) =>
       req<{ ok: true }>(`/news/${id}/read`, { method: "PUT" }),
     sources: {

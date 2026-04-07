@@ -244,6 +244,13 @@ router.get("/", (c) => {
   return c.json(items);
 });
 
+// DELETE /api/news — clear all news items
+router.delete("/", (c) => {
+  const userId = c.get("userId");
+  db.run("DELETE FROM news_items WHERE user_id = ?", [userId]);
+  return c.json({ ok: true });
+});
+
 // PUT /api/news/:id/read — mark as read
 router.put("/:id/read", (c) => {
   const userId = c.get("userId");

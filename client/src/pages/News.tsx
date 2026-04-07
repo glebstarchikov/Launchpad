@@ -38,6 +38,14 @@ export default function News() {
     },
   });
 
+  const clearAll = useMutation({
+    mutationFn: api.news.clearAll,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["news"] });
+      setSelected(null);
+    },
+  });
+
   const { data: sources = [] } = useQuery({
     queryKey: ["news-sources"],
     queryFn: api.news.sources.list,
@@ -75,16 +83,30 @@ export default function News() {
       <div className="w-1/3 min-w-[300px] max-w-[420px] border-r border-border flex flex-col shrink-0">
         <div className="p-4 border-b border-border flex items-center justify-between">
           <h1 className="text-lg font-semibold">News</h1>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => fetchNews.mutate()}
-            disabled={fetchNews.isPending}
-            className="h-7 text-xs"
-          >
-            <RefreshCw size={12} className={cn("mr-1", fetchNews.isPending && "animate-spin")} />
-            {fetchNews.isPending ? "Fetching..." : "Refresh"}
-          </Button>
+          <div className="flex items-center gap-2">
+            {items.length > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => { if (window.confirm("Clear all news items?")) clearAll.mutate(); }}
+                disabled={clearAll.isPending}
+                className="h-7 text-xs text-muted-foreground"
+              >
+                <Trash2 size={12} className="mr-1" />
+                Clear
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => fetchNews.mutate()}
+              disabled={fetchNews.isPending}
+              className="h-7 text-xs"
+            >
+              <RefreshCw size={12} className={cn("mr-1", fetchNews.isPending && "animate-spin")} />
+              {fetchNews.isPending ? "Fetching..." : "Refresh"}
+            </Button>
+          </div>
         </div>
 
         <ScrollArea className="flex-1">
