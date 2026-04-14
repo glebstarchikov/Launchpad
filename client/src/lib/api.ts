@@ -1,4 +1,4 @@
-import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note, Idea, FileRecord, DailySummary, LLMHealth, NewsItem, NewsSource, WhisperHealth, VoiceIdeaResult, GitHubRepoData, GitHubActivity } from "./types";
+import type { User, Project, ProjectLink, LaunchChecklistItem, TechDebtItem, TechDebtSeverity, TechDebtCategory, TechDebtEffort, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note, Idea, FileRecord, DailySummary, LLMHealth, NewsItem, NewsSource, WhisperHealth, VoiceIdeaResult, GitHubRepoData, GitHubActivity } from "./types";
 
 const BASE = "/api";
 
@@ -95,10 +95,10 @@ export const api = {
     },
     techDebt: {
       list: (id: string) => req<TechDebtItem[]>(`/projects/${id}/tech-debt`),
-      create: (id: string, note: string) =>
-        req<TechDebtItem>(`/projects/${id}/tech-debt`, { method: "POST", body: JSON.stringify({ note }) }),
-      update: (id: string, debtId: string, resolved: boolean) =>
-        req<{ ok: true }>(`/projects/${id}/tech-debt/${debtId}`, { method: "PUT", body: JSON.stringify({ resolved }) }),
+      create: (id: string, data: { note: string; severity?: TechDebtSeverity; category?: TechDebtCategory; effort?: TechDebtEffort }) =>
+        req<TechDebtItem>(`/projects/${id}/tech-debt`, { method: "POST", body: JSON.stringify(data) }),
+      update: (id: string, debtId: string, data: { resolved?: boolean; note?: string; severity?: TechDebtSeverity; category?: TechDebtCategory; effort?: TechDebtEffort }) =>
+        req<{ ok: true }>(`/projects/${id}/tech-debt/${debtId}`, { method: "PUT", body: JSON.stringify(data) }),
       delete: (id: string, debtId: string) =>
         req<{ ok: true }>(`/projects/${id}/tech-debt/${debtId}`, { method: "DELETE" }),
     },

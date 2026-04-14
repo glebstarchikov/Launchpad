@@ -97,11 +97,18 @@ export interface Note {
   created_at: number;
 }
 
+export type TechDebtSeverity = "low" | "medium" | "high";
+export type TechDebtCategory = "bug" | "refactor" | "security" | "performance" | "docs";
+export type TechDebtEffort = "quick" | "moderate" | "significant";
+
 export interface TechDebtItem {
   id: string;
   project_id: string;
   note: string;
   resolved: 0 | 1;
+  severity: TechDebtSeverity | null;
+  category: TechDebtCategory | null;
+  effort: TechDebtEffort | null;
   created_at: number;
 }
 
