@@ -248,16 +248,18 @@ function HealthTab({ project, id, queryClient }: { project: Project; id: string;
         <CardContent>
           <div className="flex items-center gap-3">
             <PingDot status={pingStatus} />
-            <span className="font-mono text-sm">{project.url ?? "No URL set"}</span>
+            <span className="font-mono text-sm truncate min-w-0 flex-1" title={project.url ?? undefined}>
+              {project.url ?? "No URL set"}
+            </span>
             {pingLatency !== null && (
-              <span className={cn("text-xs", pingStatus === "up" ? "text-success" : "text-destructive")}>
+              <span className={cn("text-xs shrink-0", pingStatus === "up" ? "text-success" : "text-destructive")}>
                 {pingStatus === "up" ? `${pingLatency}ms` : "unreachable"}
               </span>
             )}
             <Button
               variant="secondary"
               size="sm"
-              className="ml-auto gap-1.5"
+              className="gap-1.5 shrink-0"
               disabled={!project.url || pinging}
               onClick={handlePing}
             >
