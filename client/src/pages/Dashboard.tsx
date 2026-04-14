@@ -193,7 +193,7 @@ export default function Dashboard() {
               <span className="text-[11px] text-muted-foreground uppercase tracking-widest">Idea Inbox</span>
               <Lightbulb size={14} className="text-muted-foreground/70" />
             </div>
-            <p className="font-mono text-[28px] font-semibold tracking-tight leading-none text-warning">{ideaCount}</p>
+            <p className="font-mono text-[28px] font-semibold tracking-tight leading-none text-foreground">{ideaCount}</p>
           </CardContent>
         </Card>
 
