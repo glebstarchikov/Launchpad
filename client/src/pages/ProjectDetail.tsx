@@ -23,7 +23,7 @@ import { StageBadge, TypeBadge, TagInput, PingDot, fmt, Empty } from "@/componen
 import FilesView from "@/components/FilesView";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectStage, ProjectType, ProjectCountry, LegalItem, Note, GitHubRepoData } from "@/lib/types";
+import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, TechDebtSeverity, TechDebtCategory, TechDebtEffort, MrrEntry, Goal, ProjectStage, ProjectType, ProjectCountry, LegalItem, Note, GitHubRepoData } from "@/lib/types";
 
 const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
 const TYPES: ProjectType[] = ["for-profit", "open-source"];
@@ -193,6 +193,12 @@ function HealthTab({ project, id, queryClient }: { project: Project; id: string;
   const [pingLatency, setPingLatency] = useState<number | null>(null);
   const [pinging, setPinging] = useState(false);
   const [debtNote, setDebtNote] = useState("");
+  const [debtSeverity, setDebtSeverity] = useState<TechDebtSeverity>("medium");
+  const [debtCategory, setDebtCategory] = useState<TechDebtCategory>("refactor");
+  const [debtEffort, setDebtEffort] = useState<TechDebtEffort>("moderate");
+  const [filterSeverity, setFilterSeverity] = useState<TechDebtSeverity | "all">("all");
+  const [filterCategory, setFilterCategory] = useState<TechDebtCategory | "all">("all");
+  const [filterResolved, setFilterResolved] = useState<"all" | "open" | "resolved">("open");
 
   const { data: techDebt = [] } = useQuery({
     queryKey: ["tech-debt", id],
@@ -200,16 +206,20 @@ function HealthTab({ project, id, queryClient }: { project: Project; id: string;
   });
 
   const addDebt = useMutation({
-    mutationFn: (note: string) => api.projects.techDebt.create(id, note),
+    mutationFn: (data: { note: string; severity: TechDebtSeverity; category: TechDebtCategory; effort: TechDebtEffort }) =>
+      api.projects.techDebt.create(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tech-debt", id] });
       setDebtNote("");
+      setDebtSeverity("medium");
+      setDebtCategory("refactor");
+      setDebtEffort("moderate");
     },
   });
 
   const updateDebt = useMutation({
-    mutationFn: ({ debtId, resolved }: { debtId: string; resolved: boolean }) =>
-      api.projects.techDebt.update(id, debtId, resolved),
+    mutationFn: ({ debtId, data }: { debtId: string; data: { resolved?: boolean; severity?: TechDebtSeverity; category?: TechDebtCategory; effort?: TechDebtEffort } }) =>
+      api.projects.techDebt.update(id, debtId, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tech-debt", id] }),
   });
 
@@ -235,8 +245,23 @@ function HealthTab({ project, id, queryClient }: { project: Project; id: string;
 
   const handleAddDebt = (e: React.FormEvent) => {
     e.preventDefault();
-    if (debtNote.trim()) addDebt.mutate(debtNote.trim());
+    if (debtNote.trim()) {
+      addDebt.mutate({
+        note: debtNote.trim(),
+        severity: debtSeverity,
+        category: debtCategory,
+        effort: debtEffort,
+      });
+    }
   };
+
+  const filteredDebt = techDebt.filter((item: TechDebtItem) => {
+    if (filterSeverity !== "all" && item.severity !== filterSeverity) return false;
+    if (filterCategory !== "all" && item.category !== filterCategory) return false;
+    if (filterResolved === "open" && item.resolved === 1) return false;
+    if (filterResolved === "resolved" && item.resolved === 0) return false;
+    return true;
+  });
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -272,31 +297,142 @@ function HealthTab({ project, id, queryClient }: { project: Project; id: string;
 
       {/* Tech Debt card */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">Tech Debt</CardTitle>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium">Tech Debt</CardTitle>
+            <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
+              {techDebt.filter((i: TechDebtItem) => i.resolved === 0).length} open
+            </span>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-2">
-          {techDebt.map((item: TechDebtItem) => (
-            <div key={item.id} className={cn(
-              "flex items-start gap-2 p-2 rounded border",
-              item.resolved ? "border-success/20" : "border-warning/20"
-            )}>
-              <Checkbox
-                checked={item.resolved === 1}
-                onCheckedChange={(v) => updateDebt.mutate({ debtId: item.id, resolved: !!v })}
-              />
-              <span className={cn("text-sm flex-1", item.resolved && "line-through text-muted-foreground")}>
-                {item.note}
-              </span>
-              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                onClick={() => deleteDebt.mutate(item.id)}>
-                <Trash2 size={12} />
+        <CardContent className="space-y-3">
+          {/* Filter bar */}
+          {techDebt.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={filterResolved} onValueChange={(v) => setFilterResolved(v as typeof filterResolved)}>
+                <SelectTrigger className="h-7 text-xs w-[110px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="open">Open</SelectItem>
+                  <SelectItem value="resolved">Resolved</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterSeverity} onValueChange={(v) => setFilterSeverity(v as typeof filterSeverity)}>
+                <SelectTrigger className="h-7 text-xs w-[120px]"><SelectValue placeholder="Severity" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All severity</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v as typeof filterCategory)}>
+                <SelectTrigger className="h-7 text-xs w-[130px]"><SelectValue placeholder="Category" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  <SelectItem value="bug">Bug</SelectItem>
+                  <SelectItem value="refactor">Refactor</SelectItem>
+                  <SelectItem value="security">Security</SelectItem>
+                  <SelectItem value="performance">Performance</SelectItem>
+                  <SelectItem value="docs">Docs</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Items */}
+          {filteredDebt.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-2">
+              {techDebt.length === 0 ? "No tech debt tracked yet." : "No items match the current filters."}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {filteredDebt.map((item: TechDebtItem) => {
+                const severity = item.severity ?? "medium";
+                const category = item.category ?? "refactor";
+                const effort = item.effort ?? "moderate";
+                const severityClass =
+                  severity === "high" ? "bg-destructive/10 text-destructive border-destructive/30" :
+                  severity === "low" ? "bg-muted text-muted-foreground border-border" :
+                  "bg-warning/10 text-warning border-warning/30";
+                return (
+                  <div key={item.id} className={cn(
+                    "flex items-start gap-2 p-2.5 rounded-md border",
+                    item.resolved === 1 ? "border-border/40 bg-card/50" : "border-border"
+                  )}>
+                    <Checkbox
+                      checked={item.resolved === 1}
+                      onCheckedChange={(v) => updateDebt.mutate({ debtId: item.id, data: { resolved: !!v } })}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("text-sm", item.resolved === 1 && "line-through text-muted-foreground")}>
+                        {item.note}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded border", severityClass)}>
+                          {severity}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded border border-border text-muted-foreground">
+                          {category}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded border border-border text-muted-foreground">
+                          {effort}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
+                      onClick={() => deleteDebt.mutate(item.id)}
+                    >
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Add form */}
+          <form onSubmit={handleAddDebt} className="space-y-2 pt-2 border-t border-border">
+            <Input
+              value={debtNote}
+              onChange={e => setDebtNote(e.target.value)}
+              placeholder="Describe the tech debt..."
+            />
+            <div className="flex items-center gap-2">
+              <Select value={debtSeverity} onValueChange={(v) => setDebtSeverity(v as TechDebtSeverity)}>
+                <SelectTrigger className="h-8 text-xs flex-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low severity</SelectItem>
+                  <SelectItem value="medium">Medium severity</SelectItem>
+                  <SelectItem value="high">High severity</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={debtCategory} onValueChange={(v) => setDebtCategory(v as TechDebtCategory)}>
+                <SelectTrigger className="h-8 text-xs flex-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bug">Bug</SelectItem>
+                  <SelectItem value="refactor">Refactor</SelectItem>
+                  <SelectItem value="security">Security</SelectItem>
+                  <SelectItem value="performance">Performance</SelectItem>
+                  <SelectItem value="docs">Docs</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={debtEffort} onValueChange={(v) => setDebtEffort(v as TechDebtEffort)}>
+                <SelectTrigger className="h-8 text-xs flex-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="quick">Quick</SelectItem>
+                  <SelectItem value="moderate">Moderate</SelectItem>
+                  <SelectItem value="significant">Significant</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button type="submit" size="sm" disabled={!debtNote.trim() || addDebt.isPending} className="shrink-0">
+                Add
               </Button>
             </div>
-          ))}
-          <form onSubmit={handleAddDebt} className="flex gap-2 mt-3">
-            <Input value={debtNote} onChange={e => setDebtNote(e.target.value)} placeholder="Add tech debt item..." />
-            <Button type="submit" variant="secondary" size="sm" disabled={!debtNote.trim() || addDebt.isPending}>Add</Button>
           </form>
         </CardContent>
       </Card>
