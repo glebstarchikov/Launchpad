@@ -205,11 +205,13 @@ router.post("/:id/tech-debt", async (c) => {
   if (!ownsProject(c.req.param("id"), c.get("userId"))) {
     return c.json({ error: "Not found" }, 404);
   }
-  const { note } = await c.req.json();
+  const { note, severity, category, effort } = await c.req.json();
   if (!note) return c.json({ error: "note required" }, 400);
   const id = crypto.randomUUID();
-  db.run("INSERT INTO tech_debt (id, project_id, note, resolved, created_at) VALUES (?, ?, ?, 0, ?)",
-    [id, c.req.param("id"), note, Date.now()]);
+  db.run(
+    "INSERT INTO tech_debt (id, project_id, note, resolved, severity, category, effort, created_at) VALUES (?, ?, ?, 0, ?, ?, ?, ?)",
+    [id, c.req.param("id"), note, severity ?? null, category ?? null, effort ?? null, Date.now()]
+  );
   return c.json(db.query<TechDebtItem, [string]>("SELECT * FROM tech_debt WHERE id = ?").get(id), 201);
 });
 
@@ -218,9 +220,17 @@ router.put("/:id/tech-debt/:debtId", async (c) => {
   if (!ownsProject(c.req.param("id"), c.get("userId"))) {
     return c.json({ error: "Not found" }, 404);
   }
-  const { resolved } = await c.req.json();
-  db.run("UPDATE tech_debt SET resolved = ? WHERE id = ? AND project_id = ?",
-    [resolved ? 1 : 0, c.req.param("debtId"), c.req.param("id")]);
+  const { resolved, note, severity, category, effort } = await c.req.json();
+  const sets: string[] = [];
+  const params: (string | number | null)[] = [];
+  if (resolved !== undefined) { sets.push("resolved = ?"); params.push(resolved ? 1 : 0); }
+  if (note !== undefined) { sets.push("note = ?"); params.push(note); }
+  if (severity !== undefined) { sets.push("severity = ?"); params.push(severity); }
+  if (category !== undefined) { sets.push("category = ?"); params.push(category); }
+  if (effort !== undefined) { sets.push("effort = ?"); params.push(effort); }
+  if (sets.length === 0) return c.json({ ok: true });
+  params.push(c.req.param("debtId"), c.req.param("id"));
+  db.run(`UPDATE tech_debt SET ${sets.join(", ")} WHERE id = ? AND project_id = ?`, params);
   return c.json({ ok: true });
 });
 
