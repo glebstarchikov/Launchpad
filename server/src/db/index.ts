@@ -31,6 +31,9 @@ db.run(`CREATE TABLE IF NOT EXISTS projects (
 
 try { db.run(`ALTER TABLE projects ADD COLUMN starred INTEGER NOT NULL DEFAULT 0`); } catch {}
 try { db.run(`ALTER TABLE projects ADD COLUMN github_repo TEXT`); } catch {}
+try { db.run(`ALTER TABLE tech_debt ADD COLUMN severity TEXT`); } catch {}
+try { db.run(`ALTER TABLE tech_debt ADD COLUMN category TEXT`); } catch {}
+try { db.run(`ALTER TABLE tech_debt ADD COLUMN effort TEXT`); } catch {}
 
 db.run(`CREATE TABLE IF NOT EXISTS project_links (
   id TEXT PRIMARY KEY,
