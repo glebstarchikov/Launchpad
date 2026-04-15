@@ -1065,6 +1065,11 @@ function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnTyp
 
   return (
     <div className="space-y-4">
+      {/* Disclaimer banner */}
+      <div className="text-[11px] text-muted-foreground bg-warning/5 border border-warning/20 rounded p-2.5 leading-relaxed">
+        ⚠️ <span className="font-medium text-warning">Compliance suggestions, not legal advice.</span> This list is curated from public sources and personalized by an AI. Consult a lawyer before launching in regulated industries.
+      </div>
+
       {/* Add country card */}
       <Card>
         <CardHeader className="pb-3">
@@ -1137,8 +1142,8 @@ function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnTyp
         </Card>
       )}
 
-      {/* Active country chips */}
-      {countries.length > 0 && (
+      {/* Active country chips + auto EU chip */}
+      {(countries.length > 0 || hasEuMember) && (
         <div className="flex flex-wrap gap-2">
           {countries.map((c: ProjectCountry) => (
             <Badge key={c.id} variant="secondary" className="gap-1.5 pl-2 pr-1 py-1">
@@ -1151,6 +1156,15 @@ function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnTyp
               </button>
             </Badge>
           ))}
+          {hasEuMember && (
+            <Badge
+              variant="outline"
+              className="gap-1.5 px-2 py-1 border-dashed text-muted-foreground"
+              title="Removed automatically when no EU member countries remain."
+            >
+              {countryFlag("EU")} European Union
+            </Badge>
+          )}
         </div>
       )}
 
@@ -1234,7 +1248,7 @@ function BuildLogTab({ id, queryClient }: { id: string; queryClient: ReturnType<
   const buildLogEntries = (allNotes.data ?? []).filter((n: Note) => n.is_build_log === 1);
 
   return (
-    <div className="space-y-4 max-w-2xl">
+    <div className="space-y-4 w-full">
       {/* Composer card */}
       <Card>
         <CardContent className="p-4 space-y-3">
@@ -1244,8 +1258,8 @@ function BuildLogTab({ id, queryClient }: { id: string; queryClient: ReturnType<
             placeholder="What did you build today?"
             className="min-h-[100px] resize-none"
           />
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3 justify-between">
+            <div className="flex items-center gap-2 min-w-0">
               <Switch
                 id="build-log-toggle"
                 checked={isBuildLog}
@@ -1257,6 +1271,7 @@ function BuildLogTab({ id, queryClient }: { id: string; queryClient: ReturnType<
             </div>
             <Button
               size="sm"
+              className="shrink-0"
               disabled={!noteContent.trim() || addNote.isPending}
               onClick={() => addNote.mutate({ content: noteContent, is_build_log: isBuildLog })}
             >
