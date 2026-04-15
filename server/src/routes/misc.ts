@@ -5,6 +5,7 @@ import type { Project, Idea } from "../types/index.ts";
 import { isLLMAvailable } from "../lib/llm.ts";
 import { isWhisperAvailable } from "../lib/whisper.ts";
 import { getMonitorStatusMap, normalizeUrl } from "../lib/uptimerobot.ts";
+import { getCommits } from "../lib/github.ts";
 
 interface ActionItem {
   id: string;
@@ -19,6 +20,17 @@ interface ActionItem {
   project_name: string | null;
   target: "project" | "legal" | "checklist" | "tech-debt" | "goals" | "news";
   created_at: number;
+}
+
+interface ActivityEvent {
+  id: string;
+  kind: "commit" | "mrr-update" | "new-idea" | "news" | "tech-debt-added";
+  icon: string;
+  label: string;
+  project_id: string | null;
+  project_name: string | null;
+  timestamp: number;
+  deep_link: string | null;
 }
 
 const router = new Hono<{ Variables: { userId: string } }>();
@@ -348,6 +360,134 @@ router.get("/dashboard/action-items", async (c) => {
   };
 
   return c.json({ items, counts, generated_at: now });
+});
+
+router.get("/dashboard/activity", async (c) => {
+  const userId = c.get("userId");
+  const now = Date.now();
+  const since = now - 24 * 3600 * 1000;
+  const events: ActivityEvent[] = [];
+
+  const run = (name: string, fn: () => void) => {
+    try { fn(); } catch (e) { console.warn(`[activity] ${name} failed:`, (e as Error).message); }
+  };
+
+  // mrr-update
+  run("mrr-update", () => {
+    const rows = db.query<{ id: string; project_id: string; project_name: string; mrr: number; recorded_at: number; prev: number | null }, [string, number]>(
+      `SELECT m.id, m.project_id, p.name as project_name, m.mrr, m.recorded_at,
+         (SELECT m2.mrr FROM mrr_history m2 WHERE m2.project_id = m.project_id AND m2.recorded_at < m.recorded_at ORDER BY m2.recorded_at DESC LIMIT 1) as prev
+       FROM mrr_history m INNER JOIN projects p ON m.project_id = p.id
+       WHERE p.user_id = ? AND m.recorded_at >= ?`
+    ).all(userId, since);
+    for (const r of rows) {
+      const prev = r.prev ?? 0;
+      events.push({
+        id: `mrr-${r.id}`,
+        kind: "mrr-update",
+        icon: "📈",
+        label: `MRR $${prev} → $${r.mrr}`,
+        project_id: r.project_id,
+        project_name: r.project_name,
+        timestamp: r.recorded_at,
+        deep_link: `/projects/${r.project_id}?tab=revenue`,
+      });
+    }
+  });
+
+  // new-idea
+  run("new-idea", () => {
+    const rows = db.query<{ id: string; title: string; created_at: number }, [string, number]>(
+      `SELECT id, title, created_at FROM ideas WHERE user_id = ? AND created_at >= ?`
+    ).all(userId, since);
+    for (const r of rows) {
+      events.push({
+        id: `idea-${r.id}`,
+        kind: "new-idea",
+        icon: "💡",
+        label: `New idea: ${r.title.slice(0, 60)}`,
+        project_id: null,
+        project_name: null,
+        timestamp: r.created_at,
+        deep_link: "/ideas",
+      });
+    }
+  });
+
+  // news (grouped into one event)
+  run("news", () => {
+    const row = db.query<{ cnt: number; max_created: number | null }, [string, number]>(
+      `SELECT COUNT(*) as cnt, MAX(created_at) as max_created
+       FROM news_items WHERE user_id = ? AND relevance_score > 0.5 AND created_at >= ?`
+    ).get(userId, since);
+    if (row && row.cnt > 0) {
+      events.push({
+        id: `news-${row.max_created}`,
+        kind: "news",
+        icon: "📰",
+        label: `${row.cnt} relevant news items`,
+        project_id: null,
+        project_name: null,
+        timestamp: row.max_created ?? now,
+        deep_link: "/news",
+      });
+    }
+  });
+
+  // tech-debt-added (grouped by project)
+  run("tech-debt-added", () => {
+    const rows = db.query<{ project_id: string; project_name: string; cnt: number; max_created: number }, [string, number]>(
+      `SELECT td.project_id, p.name as project_name, COUNT(*) as cnt, MAX(td.created_at) as max_created
+       FROM tech_debt td INNER JOIN projects p ON td.project_id = p.id
+       WHERE p.user_id = ? AND td.created_at >= ?
+       GROUP BY td.project_id, p.name`
+    ).all(userId, since);
+    for (const r of rows) {
+      events.push({
+        id: `debt-${r.project_id}-${r.max_created}`,
+        kind: "tech-debt-added",
+        icon: "📝",
+        label: `${r.cnt} tech debt item${r.cnt === 1 ? "" : "s"} added`,
+        project_id: r.project_id,
+        project_name: r.project_name,
+        timestamp: r.max_created,
+        deep_link: `/projects/${r.project_id}?tab=health`,
+      });
+    }
+  });
+
+  // commits — live fetch from GitHub for projects with github_repo
+  try {
+    const projects = db.query<{ id: string; name: string; github_repo: string }, [string]>(
+      "SELECT id, name, github_repo FROM projects WHERE user_id = ? AND github_repo IS NOT NULL"
+    ).all(userId);
+    const sinceIso = new Date(since).toISOString();
+    for (const p of projects) {
+      try {
+        const commits = await getCommits(p.github_repo, sinceIso);
+        if (commits.length === 0) continue;
+        const latest = commits[0];
+        events.push({
+          id: `commit-${p.id}-${latest.sha}`,
+          kind: "commit",
+          icon: "💻",
+          label: `Pushed ${commits.length} commit${commits.length === 1 ? "" : "s"}`,
+          project_id: p.id,
+          project_name: p.name,
+          timestamp: new Date(latest.date).getTime() || now,
+          deep_link: `/projects/${p.id}?tab=github`,
+        });
+      } catch (e) {
+        // Individual GitHub fetch failed; skip this project silently
+      }
+    }
+  } catch (e) {
+    console.warn("[activity] commits failed:", (e as Error).message);
+  }
+
+  // Sort newest first, cap at 50
+  events.sort((a, b) => b.timestamp - a.timestamp);
+  return c.json({ events: events.slice(0, 50) });
 });
 
 router.post("/ping", async (c) => {
