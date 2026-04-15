@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen, ChevronDown, ChevronRight, ExternalLink, Pencil, Plus, RefreshCw, Trash2, X, Check, Star,
@@ -31,11 +31,24 @@ const TYPES: ProjectType[] = ["for-profit", "open-source"];
 // Preset link labels for the Links Hub
 const LINK_PRESETS = ["GitHub", "Vercel", "Stripe", "Supabase", "Railway", "Linear", "Figma", "Notion", "Analytics", "Production"];
 
+const VALID_TABS = ["overview", "health", "revenue", "compliance", "buildlog", "github", "files"];
+
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState("overview");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawTab = searchParams.get("tab");
+  const tab = rawTab && VALID_TABS.includes(rawTab) ? rawTab : "overview";
+  const setTab = (next: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (next === "overview") {
+      nextParams.delete("tab");
+    } else {
+      nextParams.set("tab", next);
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
 
   // Project query
   const { data: project, isLoading } = useQuery({

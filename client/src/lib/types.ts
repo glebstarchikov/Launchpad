@@ -272,3 +272,50 @@ export interface GitHubActivity {
   date: string;
   url: string;
 }
+
+export type ActionItemSeverity = "critical" | "warning" | "info";
+export type ActionItemCategory =
+  | "site-down" | "compliance-blocker" | "tech-debt-high" | "launch-blocker"
+  | "stale-project" | "overdue-goal" | "needs-review" | "stale-mrr"
+  | "compliance-important" | "news-unread";
+export type ActionItemTarget = "project" | "legal" | "checklist" | "tech-debt" | "goals" | "news";
+
+export interface ActionItem {
+  id: string;
+  severity: ActionItemSeverity;
+  category: ActionItemCategory;
+  label: string;
+  detail: string | null;
+  project_id: string | null;
+  project_name: string | null;
+  target: ActionItemTarget;
+  created_at: number;
+}
+
+export interface DashboardActionItemsResponse {
+  items: ActionItem[];
+  counts: { critical: number; warning: number; info: number };
+  generated_at: number;
+}
+
+export interface ActivityEvent {
+  id: string;
+  kind: "commit" | "mrr-update" | "new-idea" | "news" | "tech-debt-added";
+  icon: string;
+  label: string;
+  project_id: string | null;
+  project_name: string | null;
+  timestamp: number;
+  deep_link: string | null;
+}
+
+export interface DashboardActivityResponse {
+  events: ActivityEvent[];
+}
+
+export interface DashboardScoreboardResponse {
+  mrr: { current: number; previous: number; delta: number; delta_pct: number | null };
+  projectsShipped: { current: number; previous: number; delta: number };
+  legalComplete: { current_pct: number };
+  checklistComplete: { current_pct: number };
+}

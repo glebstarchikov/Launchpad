@@ -1,4 +1,4 @@
-import type { User, Project, ProjectLink, LaunchChecklistItem, ChecklistCategory, ChecklistPriority, TechDebtItem, TechDebtSeverity, TechDebtCategory, TechDebtEffort, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, LegalPriority, LegalCategory, LegalResource, LegalReviewDiff, LegalReviewMissingItem, Note, Idea, FileRecord, DailySummary, LLMHealth, NewsItem, NewsSource, WhisperHealth, VoiceIdeaResult, GitHubRepoData, GitHubActivity } from "./types";
+import type { User, Project, ProjectLink, LaunchChecklistItem, ChecklistCategory, ChecklistPriority, TechDebtItem, TechDebtSeverity, TechDebtCategory, TechDebtEffort, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, DashboardActionItemsResponse, DashboardActivityResponse, DashboardScoreboardResponse, ProjectCountry, LegalItem, LegalPriority, LegalCategory, LegalResource, LegalReviewDiff, LegalReviewMissingItem, Note, Idea, FileRecord, DailySummary, LLMHealth, NewsItem, NewsSource, WhisperHealth, VoiceIdeaResult, GitHubRepoData, GitHubActivity } from "./types";
 
 const BASE = "/api";
 
@@ -26,6 +26,9 @@ export const api = {
   },
   dashboard: {
     get: () => req<DashboardData>("/dashboard"),
+    actionItems: () => req<DashboardActionItemsResponse>("/dashboard/action-items"),
+    activity: () => req<DashboardActivityResponse>("/dashboard/activity"),
+    scoreboard: () => req<DashboardScoreboardResponse>("/dashboard/scoreboard"),
   },
   ping: (url: string) =>
     req<{ status: "up" | "down"; latencyMs: number }>("/ping", { method: "POST", body: JSON.stringify({ url }) }),
