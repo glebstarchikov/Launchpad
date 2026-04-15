@@ -34,6 +34,9 @@ try { db.run(`ALTER TABLE projects ADD COLUMN github_repo TEXT`); } catch {}
 try { db.run(`ALTER TABLE tech_debt ADD COLUMN severity TEXT`); } catch {}
 try { db.run(`ALTER TABLE tech_debt ADD COLUMN category TEXT`); } catch {}
 try { db.run(`ALTER TABLE tech_debt ADD COLUMN effort TEXT`); } catch {}
+try { db.run(`ALTER TABLE launch_checklist ADD COLUMN category TEXT`); } catch {}
+try { db.run(`ALTER TABLE launch_checklist ADD COLUMN min_stage TEXT`); } catch {}
+try { db.run(`ALTER TABLE launch_checklist ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`); } catch {}
 
 db.run(`CREATE TABLE IF NOT EXISTS project_links (
   id TEXT PRIMARY KEY,
