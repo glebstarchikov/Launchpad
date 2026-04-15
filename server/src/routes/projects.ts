@@ -146,7 +146,7 @@ router.get("/:id/launch-checklist", (c) => {
   }
   return c.json(
     db.query<LaunchChecklistItem, [string]>(
-      "SELECT * FROM launch_checklist WHERE project_id = ? ORDER BY created_at ASC"
+      "SELECT * FROM launch_checklist WHERE project_id = ? ORDER BY COALESCE(sort_order, 9999), created_at ASC"
     ).all(c.req.param("id"))
   );
 });
@@ -156,12 +156,14 @@ router.post("/:id/launch-checklist", async (c) => {
   if (!ownsProject(c.req.param("id"), c.get("userId"))) {
     return c.json({ error: "Not found" }, 404);
   }
-  const { item } = await c.req.json();
+  const { item, category, min_stage } = await c.req.json();
   if (!item) return c.json({ error: "item required" }, 400);
   const id = crypto.randomUUID();
   const now = Date.now();
-  db.run("INSERT INTO launch_checklist (id, project_id, item, completed, created_at) VALUES (?, ?, ?, 0, ?)",
-    [id, c.req.param("id"), item, now]);
+  db.run(
+    "INSERT INTO launch_checklist (id, project_id, item, completed, category, min_stage, sort_order, created_at) VALUES (?, ?, ?, 0, ?, ?, ?, ?)",
+    [id, c.req.param("id"), item, category ?? null, min_stage ?? null, 9999, now]
+  );
   return c.json(
     db.query<LaunchChecklistItem, [string]>("SELECT * FROM launch_checklist WHERE id = ?").get(id),
     201
@@ -173,9 +175,16 @@ router.put("/:id/launch-checklist/:itemId", async (c) => {
   if (!ownsProject(c.req.param("id"), c.get("userId"))) {
     return c.json({ error: "Not found" }, 404);
   }
-  const { completed } = await c.req.json();
-  db.run("UPDATE launch_checklist SET completed = ? WHERE id = ? AND project_id = ?",
-    [completed ? 1 : 0, c.req.param("itemId"), c.req.param("id")]);
+  const { completed, item, category, min_stage } = await c.req.json();
+  const sets: string[] = [];
+  const params: (string | number | null)[] = [];
+  if (completed !== undefined) { sets.push("completed = ?"); params.push(completed ? 1 : 0); }
+  if (item !== undefined) { sets.push("item = ?"); params.push(item); }
+  if (category !== undefined) { sets.push("category = ?"); params.push(category); }
+  if (min_stage !== undefined) { sets.push("min_stage = ?"); params.push(min_stage); }
+  if (sets.length === 0) return c.json({ ok: true });
+  params.push(c.req.param("itemId"), c.req.param("id"));
+  db.run(`UPDATE launch_checklist SET ${sets.join(", ")} WHERE id = ? AND project_id = ?`, params);
   return c.json({ ok: true });
 });
 
