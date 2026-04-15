@@ -471,34 +471,79 @@ router.get("/:id/legal", (c) => {
   if (!ownsProject(c.req.param("id"), c.get("userId"))) {
     return c.json({ error: "Not found" }, 404);
   }
-  return c.json(
-    db.query<LegalItem, [string]>(
-      "SELECT * FROM legal_items WHERE project_id = ? ORDER BY country_code, created_at ASC"
-    ).all(c.req.param("id"))
-  );
+  const rows = db.query<LegalItem & { resources: string | null }, [string]>(
+    `SELECT * FROM legal_items WHERE project_id = ?
+     ORDER BY scope DESC, country_code ASC,
+       CASE priority WHEN 'blocker' THEN 1 WHEN 'important' THEN 2 WHEN 'recommended' THEN 3 ELSE 4 END,
+       created_at ASC`
+  ).all(c.req.param("id"));
+  // Parse resources JSON for each row; default to [] for legacy items
+  const parsed = rows.map(r => ({
+    ...r,
+    resources: r.resources ? JSON.parse(r.resources) : [],
+  }));
+  return c.json(parsed);
 });
 
-// POST /api/projects/:id/legal — add custom item
+// POST /api/projects/:id/legal — add custom item (with optional metadata)
 router.post("/:id/legal", async (c) => {
   if (!ownsProject(c.req.param("id"), c.get("userId"))) {
     return c.json({ error: "Not found" }, 404);
   }
-  const { country_code, item } = await c.req.json();
-  if (!country_code || !item) return c.json({ error: "country_code and item required" }, 400);
+  const { country_code, item, priority, category, why, action, resources, scope, scope_code } = await c.req.json();
+  if (!country_code && !scope_code) return c.json({ error: "country_code or scope_code required" }, 400);
+  if (!item) return c.json({ error: "item required" }, 400);
   const id = crypto.randomUUID();
-  db.run("INSERT INTO legal_items (id, project_id, country_code, item, completed, created_at) VALUES (?, ?, ?, ?, 0, ?)",
-    [id, c.req.param("id"), country_code, item, Date.now()]);
-  return c.json(db.query<LegalItem, [string]>("SELECT * FROM legal_items WHERE id = ?").get(id), 201);
+  const now = Date.now();
+  db.run(
+    `INSERT INTO legal_items (id, project_id, country_code, item, completed, created_at,
+      priority, category, why, action, resources, scope, scope_code)
+     VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      c.req.param("id"),
+      country_code ?? "",
+      item,
+      now,
+      priority ?? null,
+      category ?? null,
+      why ?? null,
+      action ?? null,
+      JSON.stringify(resources ?? []),
+      scope ?? "country",
+      scope_code ?? null,
+    ]
+  );
+  const row = db.query<LegalItem & { resources: string | null }, [string]>(
+    "SELECT * FROM legal_items WHERE id = ?"
+  ).get(id);
+  return c.json({ ...row, resources: row?.resources ? JSON.parse(row.resources) : [] }, 201);
 });
 
-// PUT /api/projects/:id/legal/:itemId
+// PUT /api/projects/:id/legal/:itemId — accepts any subset of editable fields
 router.put("/:id/legal/:itemId", async (c) => {
   if (!ownsProject(c.req.param("id"), c.get("userId"))) {
     return c.json({ error: "Not found" }, 404);
   }
-  const { completed } = await c.req.json();
-  db.run("UPDATE legal_items SET completed = ? WHERE id = ? AND project_id = ?",
-    [completed ? 1 : 0, c.req.param("itemId"), c.req.param("id")]);
+  const body = await c.req.json();
+  const sets: string[] = [];
+  const params: (string | number | null)[] = [];
+
+  if (body.completed !== undefined) { sets.push("completed = ?"); params.push(body.completed ? 1 : 0); }
+  if (body.item !== undefined) { sets.push("item = ?"); params.push(body.item); }
+  if (body.priority !== undefined) { sets.push("priority = ?"); params.push(body.priority); }
+  if (body.category !== undefined) { sets.push("category = ?"); params.push(body.category); }
+  if (body.why !== undefined) { sets.push("why = ?"); params.push(body.why); }
+  if (body.action !== undefined) { sets.push("action = ?"); params.push(body.action); }
+  if (body.resources !== undefined) { sets.push("resources = ?"); params.push(JSON.stringify(body.resources)); }
+  if (body.status_note !== undefined) { sets.push("status_note = ?"); params.push(body.status_note); }
+
+  if (sets.length === 0) return c.json({ ok: true });
+  params.push(c.req.param("itemId"), c.req.param("id"));
+  db.run(
+    `UPDATE legal_items SET ${sets.join(", ")} WHERE id = ? AND project_id = ?`,
+    params
+  );
   return c.json({ ok: true });
 });
 
