@@ -1,5 +1,4 @@
 export const COUNTRIES: { code: string; name: string }[] = [
-  { code: "EU", name: "European Union" },
   { code: "US", name: "United States" },
   { code: "UK", name: "United Kingdom" },
   { code: "CA", name: "Canada" },
@@ -13,6 +12,15 @@ export const COUNTRIES: { code: string; name: string }[] = [
   { code: "SG", name: "Singapore" },
   { code: "RU", name: "Russia" },
 ];
+
+export const EU_MEMBER_CODES = [
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
+  "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE",
+];
+
+export function isEuMemberCountry(code: string): boolean {
+  return EU_MEMBER_CODES.includes(code);
+}
 
 export function countryFlag(code: string): string {
   // EU has no ISO 3166-1 alpha-2 code — use the flag emoji directly

@@ -41,6 +41,14 @@ export interface ProjectCountry {
   country_name: string;
 }
 
+export type LegalPriority = "blocker" | "important" | "recommended";
+export type LegalCategory = "privacy" | "tax" | "terms" | "ip" | "accessibility" | "data" | "corporate";
+
+export interface LegalResource {
+  label: string;
+  url: string;
+}
+
 export interface LegalItem {
   id: string;
   project_id: string;
@@ -48,6 +56,35 @@ export interface LegalItem {
   item: string;
   completed: 0 | 1;
   created_at: number;
+  priority: LegalPriority | null;
+  category: LegalCategory | null;
+  why: string | null;
+  action: string | null;
+  resources: LegalResource[];
+  scope: "country" | "region";
+  scope_code: string | null;
+  last_reviewed_at: number | null;
+  status_note: string | null;
+}
+
+export interface LegalReviewMissingItem {
+  item: string;
+  priority: LegalPriority;
+  category: LegalCategory;
+  why: string;
+  action: string;
+  resources: LegalResource[];
+  country_code: string;
+  scope: "country" | "region";
+  scope_code: string | null;
+}
+
+export interface LegalReviewDiff {
+  ok: string[];
+  stale: { id: string; status_note: string }[];
+  rename: { id: string; new_item: string }[];
+  missing: LegalReviewMissingItem[];
+  removed: string[];
 }
 
 export type ChecklistCategory = "validation" | "build" | "infra" | "legal" | "marketing" | "launch" | "growth";

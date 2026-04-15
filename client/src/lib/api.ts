@@ -1,4 +1,4 @@
-import type { User, Project, ProjectLink, LaunchChecklistItem, ChecklistCategory, TechDebtItem, TechDebtSeverity, TechDebtCategory, TechDebtEffort, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, Note, Idea, FileRecord, DailySummary, LLMHealth, NewsItem, NewsSource, WhisperHealth, VoiceIdeaResult, GitHubRepoData, GitHubActivity } from "./types";
+import type { User, Project, ProjectLink, LaunchChecklistItem, ChecklistCategory, TechDebtItem, TechDebtSeverity, TechDebtCategory, TechDebtEffort, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, LegalPriority, LegalCategory, LegalResource, LegalReviewDiff, LegalReviewMissingItem, Note, Idea, FileRecord, DailySummary, LLMHealth, NewsItem, NewsSource, WhisperHealth, VoiceIdeaResult, GitHubRepoData, GitHubActivity } from "./types";
 
 const BASE = "/api";
 
@@ -125,12 +125,40 @@ export const api = {
     },
     legal: {
       list: (id: string) => req<LegalItem[]>(`/projects/${id}/legal`),
-      create: (id: string, data: { country_code: string; item: string }) =>
+      create: (id: string, data: {
+        country_code: string;
+        item: string;
+        priority?: LegalPriority;
+        category?: LegalCategory;
+        why?: string;
+        action?: string;
+        resources?: LegalResource[];
+        scope?: "country" | "region";
+        scope_code?: string | null;
+      }) =>
         req<LegalItem>(`/projects/${id}/legal`, { method: "POST", body: JSON.stringify(data) }),
-      update: (id: string, itemId: string, completed: boolean) =>
-        req<{ ok: true }>(`/projects/${id}/legal/${itemId}`, { method: "PUT", body: JSON.stringify({ completed }) }),
+      update: (id: string, itemId: string, data: {
+        completed?: boolean;
+        item?: string;
+        priority?: LegalPriority;
+        category?: LegalCategory;
+        why?: string;
+        action?: string;
+        resources?: LegalResource[];
+        status_note?: string | null;
+      }) =>
+        req<{ ok: true }>(`/projects/${id}/legal/${itemId}`, { method: "PUT", body: JSON.stringify(data) }),
       delete: (id: string, itemId: string) =>
         req<{ ok: true }>(`/projects/${id}/legal/${itemId}`, { method: "DELETE" }),
+      review: (id: string) =>
+        req<LegalReviewDiff>(`/projects/${id}/legal/review`, { method: "POST", body: JSON.stringify({}) }),
+      applyReview: (id: string, diff: {
+        stale: { id: string; status_note: string }[];
+        rename: { id: string; new_item: string }[];
+        missing: LegalReviewMissingItem[];
+        removed: string[];
+      }) =>
+        req<{ applied: number }>(`/projects/${id}/legal/review/apply`, { method: "POST", body: JSON.stringify(diff) }),
     },
     notes: {
       list: (id: string) => req<Note[]>(`/projects/${id}/notes`),
