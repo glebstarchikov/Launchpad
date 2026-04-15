@@ -4,7 +4,7 @@ import { requireAuth } from "../middleware/auth.ts";
 import { getDefaultChecklist } from "../lib/constants.ts";
 import { itemsForCountry, itemsForRegion, isEuMember } from "../lib/legal-catalog.ts";
 import type { LegalProjectType, LegalCatalogItem } from "../lib/legal-catalog.ts";
-import { enrichSeedItems } from "../lib/legal-llm.ts";
+import { enrichSeedItems, reviewItems, type ReviewedItem } from "../lib/legal-llm.ts";
 import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectCountry, LegalItem, Note } from "../types/index.ts";
 
 
@@ -545,6 +545,81 @@ router.put("/:id/legal/:itemId", async (c) => {
     params
   );
   return c.json({ ok: true });
+});
+
+// POST /api/projects/:id/legal/review — runs LLM freshness review, returns diff
+router.post("/:id/legal/review", async (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  const projectId = c.req.param("id");
+
+  const project = db.query<{ name: string; description: string | null; type: string; stage: string }, [string]>(
+    "SELECT name, description, type, stage FROM projects WHERE id = ?"
+  ).get(projectId);
+  if (!project) return c.json({ error: "Not found" }, 404);
+
+  const projectType: LegalProjectType = project.type === "open-source" ? "open-source" : "for-profit";
+
+  // Load current items
+  const rows = db.query<{
+    id: string;
+    country_code: string;
+    item: string;
+    priority: string | null;
+    category: string | null;
+    why: string | null;
+    action: string | null;
+    scope: string;
+    scope_code: string | null;
+  }, [string]>(
+    `SELECT id, country_code, item, priority, category, why, action, scope, scope_code
+     FROM legal_items WHERE project_id = ?`
+  ).all(projectId);
+
+  const currentItems: ReviewedItem[] = rows.map(r => ({
+    id: r.id,
+    country_code: r.country_code,
+    scope: (r.scope === "region" ? "region" : "country") as "country" | "region",
+    scope_code: r.scope_code,
+    item: r.item,
+    priority: r.priority as any,
+    category: r.category as any,
+    why: r.why,
+    action: r.action,
+  }));
+
+  // Build the catalog snapshot for this project's countries + EU if any EU member is present
+  const projectCountries = db.query<{ country_code: string }, [string]>(
+    "SELECT DISTINCT country_code FROM project_countries WHERE project_id = ?"
+  ).all(projectId).map(r => r.country_code);
+
+  const catalogSnapshot: LegalCatalogItem[] = [];
+  for (const cc of projectCountries) {
+    catalogSnapshot.push(...itemsForCountry(cc, projectType));
+  }
+  if (projectCountries.some(isEuMember)) {
+    catalogSnapshot.push(...itemsForRegion("eu", projectType));
+  }
+
+  try {
+    const diff = await reviewItems(
+      {
+        name: project.name,
+        description: project.description,
+        type: project.type,
+        stage: project.stage,
+      },
+      currentItems,
+      catalogSnapshot
+    );
+    return c.json(diff);
+  } catch (err) {
+    return c.json(
+      { error: "LLM review unavailable", retryable: true, message: (err as Error).message },
+      503
+    );
+  }
 });
 
 // DELETE /api/projects/:id/legal/:itemId
