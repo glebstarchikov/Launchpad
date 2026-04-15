@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight, Sparkles, Loader2, Newspaper, ChevronDown, ChevronUp, GitCommit, RefreshCw } from "lucide-react";
+import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight, Sparkles, Loader2, Newspaper, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { StageBadge, Empty, fmt, STAGE_META } from "@/components/app-ui";
@@ -69,6 +69,278 @@ function ExpandableCard({
   );
 }
 
+const SEVERITY_DOT_CLASS: Record<string, string> = {
+  critical: "bg-destructive",
+  warning: "bg-warning",
+  info: "bg-info",
+};
+
+const SEVERITY_LABEL: Record<string, string> = {
+  critical: "Critical",
+  warning: "Warning",
+  info: "Info",
+};
+
+function deepLinkFor(item: import("@/lib/types").ActionItem): string {
+  if (item.target === "news") return "/news";
+  if (!item.project_id) return "/projects";
+  const tabMap: Record<string, string> = {
+    project: "",                    // overview
+    legal: "compliance",
+    checklist: "overview",
+    "tech-debt": "health",
+    goals: "revenue",
+  };
+  const tab = tabMap[item.target] ?? "";
+  return tab ? `/projects/${item.project_id}?tab=${tab}` : `/projects/${item.project_id}`;
+}
+
+function ActionItemsCard() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["dashboard", "action-items"],
+    queryFn: api.dashboard.actionItems,
+    staleTime: 60_000,
+  });
+
+  const items = data?.items ?? [];
+  const counts = data?.counts ?? { critical: 0, warning: 0, info: 0 };
+
+  const bySeverity = {
+    critical: items.filter((i) => i.severity === "critical"),
+    warning: items.filter((i) => i.severity === "warning"),
+    info: items.filter((i) => i.severity === "info"),
+  };
+
+  const renderSection = (severity: "critical" | "warning" | "info") => {
+    const list = bySeverity[severity];
+    if (list.length === 0) return null;
+    const isExpanded = expanded[severity] ?? false;
+    const visible = isExpanded ? list : list.slice(0, 6);
+    const hidden = list.length - visible.length;
+
+    return (
+      <div key={severity}>
+        <h4 className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5 flex items-center gap-1.5">
+          <span className={cn("h-1.5 w-1.5 rounded-full", SEVERITY_DOT_CLASS[severity])} />
+          {SEVERITY_LABEL[severity]} ({list.length})
+        </h4>
+        <div className="space-y-1">
+          {visible.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => navigate(deepLinkFor(item))}
+              className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-secondary/50 group w-full text-left"
+            >
+              <span className={cn("h-2 w-2 rounded-full shrink-0", SEVERITY_DOT_CLASS[severity])} />
+              <span className="text-[13px] flex-1 truncate">{item.label}</span>
+              {item.project_name && (
+                <span className="text-[11px] text-muted-foreground shrink-0">{item.project_name}</span>
+              )}
+              <ArrowUpRight size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0" />
+            </button>
+          ))}
+          {hidden > 0 && (
+            <button
+              onClick={() => setExpanded((e) => ({ ...e, [severity]: true }))}
+              className="text-[11px] text-muted-foreground hover:text-foreground pl-3 py-1"
+            >
+              + {hidden} more
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium">Action Items</CardTitle>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
+              {counts.critical} critical · {counts.warning} warning · {counts.info} info
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 w-6 p-0"
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["dashboard", "action-items"] })}
+              title="Refresh"
+            >
+              <RefreshCw size={11} />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="py-4 space-y-2">
+            <div className="h-6 bg-card rounded border border-border animate-pulse" />
+            <div className="h-6 bg-card rounded border border-border animate-pulse" />
+          </div>
+        ) : isError ? (
+          <p className="text-xs text-destructive py-2">Failed to load action items.</p>
+        ) : items.length === 0 ? (
+          <div className="flex items-center gap-2 py-6 justify-center text-success">
+            <span className="h-2 w-2 rounded-full bg-success" />
+            <span className="text-sm">All clear — nothing needs attention</span>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {renderSection("critical")}
+            {renderSection("warning")}
+            {renderSection("info")}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function formatRelativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function ActivityFeedCard() {
+  const navigate = useNavigate();
+  const [showAll, setShowAll] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["dashboard", "activity"],
+    queryFn: api.dashboard.activity,
+    staleTime: 60_000,
+  });
+
+  const events = data?.events ?? [];
+  const visible = showAll ? events : events.slice(0, 8);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium">What moved (last 24h)</CardTitle>
+          <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
+            {events.length} event{events.length === 1 ? "" : "s"}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="py-2 space-y-2">
+            <div className="h-5 bg-card rounded border border-border animate-pulse" />
+            <div className="h-5 bg-card rounded border border-border animate-pulse" />
+          </div>
+        ) : events.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-4">No activity yet today</p>
+        ) : (
+          <div className="space-y-1.5">
+            {visible.map((event) => (
+              <button
+                key={event.id}
+                onClick={() => event.deep_link && navigate(event.deep_link)}
+                disabled={!event.deep_link}
+                className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-secondary/50 group w-full text-left disabled:cursor-default disabled:hover:bg-transparent"
+              >
+                <span className="text-[11px] text-muted-foreground font-mono tabular-nums shrink-0 w-14">
+                  {formatRelativeTime(event.timestamp)}
+                </span>
+                <span className="text-base shrink-0">{event.icon}</span>
+                <span className="text-[13px] flex-1 truncate">{event.label}</span>
+                {event.project_name && (
+                  <span className="text-[11px] text-muted-foreground shrink-0">{event.project_name}</span>
+                )}
+              </button>
+            ))}
+            {events.length > 8 && !showAll && (
+              <button
+                onClick={() => setShowAll(true)}
+                className="text-[11px] text-muted-foreground hover:text-foreground pl-2 py-1 w-full text-left"
+              >
+                Show {events.length - 8} more
+              </button>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ScoreboardCard() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["dashboard", "scoreboard"],
+    queryFn: api.dashboard.scoreboard,
+    staleTime: 60_000,
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="pb-3"><CardTitle className="text-sm font-medium">This month</CardTitle></CardHeader>
+        <CardContent>
+          <div className="h-24 bg-card rounded border border-border animate-pulse" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data) return null;
+
+  const renderDeltaRow = (
+    label: string,
+    current: string,
+    delta: number,
+    formatDelta: (n: number) => string,
+    deltaPct: number | null = null,
+  ) => (
+    <div className="flex items-center justify-between py-2">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-3">
+        <span className="font-mono text-sm tabular-nums">{current}</span>
+        {delta !== 0 && (
+          <span className={cn("text-xs font-mono tabular-nums", delta > 0 ? "text-success" : "text-destructive")}>
+            {delta > 0 ? "↑" : "↓"} {formatDelta(Math.abs(delta))}
+            {deltaPct !== null && ` (${deltaPct > 0 ? "+" : ""}${deltaPct}%)`}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderStaticRow = (label: string, value: string) => (
+    <div className="flex items-center justify-between py-2">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="font-mono text-sm tabular-nums">{value}</span>
+    </div>
+  );
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium">This month</CardTitle>
+      </CardHeader>
+      <CardContent className="divide-y divide-border">
+        {renderDeltaRow("MRR", fmt(data.mrr.current), data.mrr.delta, fmt, data.mrr.delta_pct)}
+        {renderDeltaRow("Projects shipped", String(data.projectsShipped.current), data.projectsShipped.delta, String)}
+        {renderStaticRow("Legal complete", `${data.legalComplete.current_pct}%`)}
+        {renderStaticRow("Launch checklist", `${data.checklistComplete.current_pct}%`)}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -121,12 +393,6 @@ export default function Dashboard() {
     },
   });
 
-  const { data: githubActivity } = useQuery({
-    queryKey: ["github", "activity"],
-    queryFn: api.github.activity,
-    staleTime: 60_000,
-  });
-
   if (isLoading) {
     return (
       <div className="px-8 py-6">
@@ -161,55 +427,45 @@ export default function Dashboard() {
 
   return (
     <div className="px-8 py-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-lg font-semibold">Dashboard</h1>
+        <div className="flex items-center gap-4 text-xs font-mono tabular-nums">
+          <button
+            onClick={() => navigate("/projects")}
+            className={cn(
+              "hover:text-foreground transition-colors",
+              mrr > 0 ? "text-success" : "text-muted-foreground"
+            )}
+          >
+            MRR {fmt(mrr)}
+          </button>
+          <button
+            onClick={() => navigate("/projects")}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Projects {projectCount}
+          </button>
+          <button
+            onClick={() => navigate("/ideas")}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Ideas {ideaCount}
+          </button>
+          <button
+            onClick={() => navigate("/projects")}
+            className={cn(
+              "transition-colors hover:text-foreground",
+              legalPending > 0 ? "text-destructive" : "text-muted-foreground"
+            )}
+          >
+            Legal {legalPending}{legalPending > 0 && " ⚠"}
+          </button>
+        </div>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] text-muted-foreground uppercase tracking-widest">Total MRR</span>
-              <TrendingUp size={14} className="text-muted-foreground/70" />
-            </div>
-            <p className={cn("font-mono text-[28px] font-semibold tracking-tight leading-none", mrr > 0 ? "text-success" : "text-foreground")}>{fmt(mrr)}</p>
-          </CardContent>
-        </Card>
+      <ActionItemsCard />
 
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] text-muted-foreground uppercase tracking-widest">Projects</span>
-              <FolderKanban size={14} className="text-muted-foreground/70" />
-            </div>
-            <p className="font-mono text-[28px] font-semibold tracking-tight leading-none text-foreground">{projectCount}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] text-muted-foreground uppercase tracking-widest">Idea Inbox</span>
-              <Lightbulb size={14} className="text-muted-foreground/70" />
-            </div>
-            <p className="font-mono text-[28px] font-semibold tracking-tight leading-none text-foreground">{ideaCount}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] text-muted-foreground uppercase tracking-widest">Legal Pending</span>
-              <AlertTriangle size={14} className="text-muted-foreground/70" />
-            </div>
-            <p className={cn(
-              "font-mono text-[28px] font-semibold tracking-tight leading-none",
-              legalPending > 0 ? "text-destructive" : "text-foreground"
-            )}>{legalPending}</p>
-          </CardContent>
-        </Card>
-      </div>
+      <ActivityFeedCard />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Pipeline */}
@@ -285,34 +541,6 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* GitHub Activity */}
-      {githubActivity && githubActivity.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <GitCommit size={14} />
-                Today's Commits
-              </CardTitle>
-              <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{githubActivity.length}</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-[200px] overflow-y-auto">
-              {githubActivity.slice(0, 8).map((c) => (
-                <div key={c.sha} className="flex items-start gap-2">
-                  <code className="text-[11px] text-muted-foreground font-mono shrink-0">{c.sha}</code>
-                  <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-[13px] hover:text-info transition-colors line-clamp-1 flex-1">
-                    {c.message}
-                  </a>
-                  <span className="text-[11px] text-muted-foreground shrink-0">{c.project}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Idea Inbox — fixed height, expandable */}
       <ExpandableCard
         title="Idea Inbox"
@@ -378,6 +606,8 @@ export default function Dashboard() {
         </ExpandableCard>
         );
       })()}
+
+      <ScoreboardCard />
 
       {/* Daily Summary — expandable */}
       <ExpandableCard
