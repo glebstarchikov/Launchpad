@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
-import { DEFAULT_CHECKLIST } from "../lib/constants.ts";
+import { getDefaultChecklist } from "../lib/constants.ts";
 import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectCountry, LegalItem, Note } from "../types/index.ts";
 
 const LEGAL_REQUIREMENTS: Record<string, string[]> = {
@@ -50,11 +50,12 @@ router.post("/", async (c) => {
      type ?? "for-profit", stage ?? "idea",
      JSON.stringify(tech_stack ?? []), now, now]
   );
+  const projectType = (type ?? "for-profit") as "for-profit" | "open-source";
   const insertItem = db.prepare(
-    "INSERT INTO launch_checklist (id, project_id, item, completed, created_at) VALUES (?, ?, ?, 0, ?)"
+    "INSERT INTO launch_checklist (id, project_id, item, completed, category, min_stage, sort_order, created_at) VALUES (?, ?, ?, 0, ?, ?, ?, ?)"
   );
-  for (const item of DEFAULT_CHECKLIST) {
-    insertItem.run(crypto.randomUUID(), id, item, now);
+  for (const entry of getDefaultChecklist(projectType)) {
+    insertItem.run(crypto.randomUUID(), id, entry.item, entry.category, entry.min_stage, entry.sort_order, now);
   }
   const project = db.query<Project, [string]>("SELECT * FROM projects WHERE id = ?").get(id);
   return c.json(project, 201);

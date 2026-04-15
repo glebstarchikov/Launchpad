@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
-import { DEFAULT_CHECKLIST } from "../lib/constants.ts";
+import { getDefaultChecklist } from "../lib/constants.ts";
 import type { Idea, Project } from "../types/index.ts";
 
 const router = new Hono<{ Variables: { userId: string } }>();
@@ -55,12 +55,12 @@ router.post("/:id/promote", async (c) => {
     [projectId, c.get("userId"), idea.title, idea.body, now, now]
   );
 
-  // Seed default checklist for new project
+  // Seed default checklist for new project (promoted ideas default to for-profit)
   const insertItem = db.prepare(
-    "INSERT INTO launch_checklist (id, project_id, item, completed, created_at) VALUES (?, ?, ?, 0, ?)"
+    "INSERT INTO launch_checklist (id, project_id, item, completed, category, min_stage, sort_order, created_at) VALUES (?, ?, ?, 0, ?, ?, ?, ?)"
   );
-  for (const item of DEFAULT_CHECKLIST) {
-    insertItem.run(crypto.randomUUID(), projectId, item, now);
+  for (const entry of getDefaultChecklist("for-profit")) {
+    insertItem.run(crypto.randomUUID(), projectId, entry.item, entry.category, entry.min_stage, entry.sort_order, now);
   }
 
   db.run("UPDATE ideas SET status='promoted', promoted_to_project_id=?, updated_at=? WHERE id=?",
