@@ -433,13 +433,36 @@ router.post("/:id/countries", async (c) => {
   return c.json(db.query<ProjectCountry, [string]>("SELECT * FROM project_countries WHERE id = ?").get(countryRowId), 201);
 });
 
-// DELETE /api/projects/:id/countries/:cId — FK CASCADE removes legal_items automatically
+// DELETE /api/projects/:id/countries/:cId — FK CASCADE removes country-scoped legal_items;
+// also cascades EU-region items if no EU members remain.
 router.delete("/:id/countries/:cId", (c) => {
   if (!ownsProject(c.req.param("id"), c.get("userId"))) {
     return c.json({ error: "Not found" }, 404);
   }
-  db.run("DELETE FROM project_countries WHERE id = ? AND project_id = ?",
-    [c.req.param("cId"), c.req.param("id")]);
+  const projectId = c.req.param("id");
+  const cId = c.req.param("cId");
+
+  // Lookup the country code BEFORE we delete the row
+  const country = db.query<{ country_code: string }, [string, string]>(
+    "SELECT country_code FROM project_countries WHERE id = ? AND project_id = ?"
+  ).get(cId, projectId);
+
+  db.run("DELETE FROM project_countries WHERE id = ? AND project_id = ?", [cId, projectId]);
+
+  // If the removed country was an EU member, check whether any EU members remain.
+  // If not, also delete the EU-region legal items.
+  if (country && isEuMember(country.country_code)) {
+    const remainingEu = db.query<{ country_code: string }, [string]>(
+      "SELECT country_code FROM project_countries WHERE project_id = ?"
+    ).all(projectId).filter(r => isEuMember(r.country_code));
+    if (remainingEu.length === 0) {
+      db.run(
+        "DELETE FROM legal_items WHERE project_id = ? AND scope = 'region' AND scope_code = 'eu'",
+        [projectId]
+      );
+    }
+  }
+
   return c.json({ ok: true });
 });
 
