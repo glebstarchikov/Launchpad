@@ -198,7 +198,7 @@ function HealthTab({ project, id, queryClient }: { project: Project; id: string;
   const [debtEffort, setDebtEffort] = useState<TechDebtEffort>("moderate");
   const [filterSeverity, setFilterSeverity] = useState<TechDebtSeverity | "all">("all");
   const [filterCategory, setFilterCategory] = useState<TechDebtCategory | "all">("all");
-  const [filterResolved, setFilterResolved] = useState<"all" | "open" | "resolved">("open");
+  const [filterResolved, setFilterResolved] = useState<"all" | "open" | "resolved">("all");
 
   const { data: techDebt = [] } = useQuery({
     queryKey: ["tech-debt", id],
@@ -357,26 +357,26 @@ function HealthTab({ project, id, queryClient }: { project: Project; id: string;
                   "bg-warning/10 text-warning border-warning/30";
                 return (
                   <div key={item.id} className={cn(
-                    "flex items-start gap-2 p-2.5 rounded-md border",
+                    "flex items-start gap-3 p-4 rounded-md border",
                     item.resolved === 1 ? "border-border/40 bg-card/50" : "border-border"
                   )}>
                     <Checkbox
                       checked={item.resolved === 1}
                       onCheckedChange={(v) => updateDebt.mutate({ debtId: item.id, data: { resolved: !!v } })}
-                      className="mt-0.5"
+                      className="mt-1"
                     />
-                    <div className="flex-1 min-w-0">
-                      <p className={cn("text-sm", item.resolved === 1 && "line-through text-muted-foreground")}>
+                    <div className="flex-1 min-w-0 space-y-3">
+                      <p className={cn("text-sm leading-relaxed", item.resolved === 1 && "line-through text-muted-foreground")}>
                         {item.note}
                       </p>
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded border", severityClass)}>
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <span className={cn("text-[11px] px-2.5 py-1 rounded border font-medium leading-none", severityClass)}>
                           {severity}
                         </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded border border-border text-muted-foreground">
+                        <span className="text-[11px] px-2.5 py-1 rounded border border-border text-muted-foreground leading-none">
                           {category}
                         </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded border border-border text-muted-foreground">
+                        <span className="text-[11px] px-2.5 py-1 rounded border border-border text-muted-foreground leading-none">
                           {effort}
                         </span>
                       </div>
@@ -384,10 +384,10 @@ function HealthTab({ project, id, queryClient }: { project: Project; id: string;
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
                       onClick={() => deleteDebt.mutate(item.id)}
                     >
-                      <Trash2 size={12} />
+                      <Trash2 size={13} />
                     </Button>
                   </div>
                 );
