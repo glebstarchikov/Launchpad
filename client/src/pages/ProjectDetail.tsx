@@ -23,7 +23,7 @@ import { StageBadge, TypeBadge, TagInput, PingDot, fmt, Empty } from "@/componen
 import FilesView from "@/components/FilesView";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import type { Project, ProjectLink, LaunchChecklistItem, ChecklistCategory, TechDebtItem, TechDebtSeverity, TechDebtCategory, TechDebtEffort, MrrEntry, Goal, ProjectStage, ProjectType, ProjectCountry, LegalItem, LegalPriority, LegalCategory, LegalResource, Note, GitHubRepoData } from "@/lib/types";
+import type { Project, ProjectLink, LaunchChecklistItem, ChecklistCategory, TechDebtItem, TechDebtSeverity, TechDebtCategory, TechDebtEffort, MrrEntry, Goal, ProjectStage, ProjectType, ProjectCountry, LegalItem, LegalPriority, LegalCategory, LegalResource, LegalReviewDiff, LegalReviewMissingItem, Note, GitHubRepoData } from "@/lib/types";
 
 const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
 const TYPES: ProjectType[] = ["for-profit", "open-source"];
@@ -734,6 +734,221 @@ function isEuMemberCountry(code: string): boolean {
   return EU_MEMBER_CODES.includes(code);
 }
 
+function LegalReviewModal({
+  diff,
+  isLoading,
+  error,
+  onClose,
+  onApply,
+  onRetry,
+}: {
+  diff: LegalReviewDiff | null;
+  isLoading: boolean;
+  error: string | null;
+  onClose: () => void;
+  onApply: (accepted: {
+    stale: { id: string; status_note: string }[];
+    rename: { id: string; new_item: string }[];
+    missing: LegalReviewMissingItem[];
+    removed: string[];
+  }) => void;
+  onRetry: () => void;
+}) {
+  const [acceptedStale, setAcceptedStale] = useState<Set<number>>(new Set());
+  const [acceptedRename, setAcceptedRename] = useState<Set<number>>(new Set());
+  const [acceptedMissing, setAcceptedMissing] = useState<Set<number>>(new Set());
+  const [acceptedRemoved, setAcceptedRemoved] = useState<Set<number>>(new Set());
+  const [allowRemovals, setAllowRemovals] = useState(false);
+  const [showOk, setShowOk] = useState(false);
+
+  const toggle = (set: Set<number>, setSet: (s: Set<number>) => void, idx: number) => {
+    const next = new Set(set);
+    if (next.has(idx)) next.delete(idx);
+    else next.add(idx);
+    setSet(next);
+  };
+
+  const totalAccepted = acceptedStale.size + acceptedRename.size + acceptedMissing.size + acceptedRemoved.size;
+
+  const handleApply = () => {
+    if (!diff) return;
+    onApply({
+      stale: [...acceptedStale].map(i => diff.stale[i]),
+      rename: [...acceptedRename].map(i => diff.rename[i]),
+      missing: [...acceptedMissing].map(i => diff.missing[i]),
+      removed: [...acceptedRemoved].map(i => diff.removed[i]),
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-card border border-border rounded-lg max-w-3xl w-full max-h-[80vh] flex flex-col">
+        <div className="p-4 border-b border-border flex items-center justify-between">
+          <h2 className="text-base font-semibold">Review Compliance</h2>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+            <X size={14} />
+          </Button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-4 space-y-4">
+          {isLoading && (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              Reviewing compliance items with LLM... this may take 5-15 seconds.
+            </p>
+          )}
+
+          {error && (
+            <div className="text-center py-8 space-y-3">
+              <p className="text-sm text-destructive">Review failed: {error}</p>
+              <Button onClick={onRetry} size="sm">Retry</Button>
+            </div>
+          )}
+
+          {diff && !isLoading && !error && (
+            <>
+              {/* Stale items */}
+              <div>
+                <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">
+                  Stale ({diff.stale.length})
+                </h3>
+                {diff.stale.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">No stale items.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {diff.stale.map((s, idx) => (
+                      <label key={idx} className="flex items-start gap-2 p-2 rounded border border-border cursor-pointer hover:bg-secondary/30">
+                        <Checkbox checked={acceptedStale.has(idx)} onCheckedChange={() => toggle(acceptedStale, setAcceptedStale, idx)} className="mt-1" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">id: {s.id.slice(0, 8)}…</p>
+                          <p className="text-sm text-warning leading-snug mt-0.5">{s.status_note}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Renamed items */}
+              <div>
+                <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">
+                  Renamed ({diff.rename.length})
+                </h3>
+                {diff.rename.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">No renamed items.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {diff.rename.map((r, idx) => (
+                      <label key={idx} className="flex items-start gap-2 p-2 rounded border border-border cursor-pointer hover:bg-secondary/30">
+                        <Checkbox checked={acceptedRename.has(idx)} onCheckedChange={() => toggle(acceptedRename, setAcceptedRename, idx)} className="mt-1" />
+                        <div className="flex-1 min-w-0 text-sm">
+                          <p className="text-muted-foreground line-through">{r.id.slice(0, 8)}…</p>
+                          <p>→ {r.new_item}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Missing items */}
+              <div>
+                <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">
+                  Missing ({diff.missing.length})
+                </h3>
+                {diff.missing.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">No missing items.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {diff.missing.map((m, idx) => (
+                      <label key={idx} className="flex items-start gap-2 p-2 rounded border border-border cursor-pointer hover:bg-secondary/30">
+                        <Checkbox checked={acceptedMissing.has(idx)} onCheckedChange={() => toggle(acceptedMissing, setAcceptedMissing, idx)} className="mt-1" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{m.item}</p>
+                          <div className="flex gap-2 mt-1 text-[10px]">
+                            <span className="text-muted-foreground">{m.scope === "region" ? "🇪🇺 EU" : m.country_code}</span>
+                            <span className="text-muted-foreground">{m.priority}</span>
+                            <span className="text-muted-foreground">{m.category}</span>
+                          </div>
+                          {m.why && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{m.why}</p>}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Removed items (gated) */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                    Removed ({diff.removed.length})
+                  </h3>
+                  {diff.removed.length > 0 && (
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                      <Checkbox checked={allowRemovals} onCheckedChange={(v) => setAllowRemovals(!!v)} />
+                      Allow removals
+                    </label>
+                  )}
+                </div>
+                {diff.removed.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">No removals suggested.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {diff.removed.map((rid, idx) => (
+                      <label
+                        key={idx}
+                        className={cn(
+                          "flex items-start gap-2 p-2 rounded border border-border",
+                          allowRemovals ? "cursor-pointer hover:bg-secondary/30" : "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        <Checkbox
+                          checked={acceptedRemoved.has(idx)}
+                          disabled={!allowRemovals}
+                          onCheckedChange={() => allowRemovals && toggle(acceptedRemoved, setAcceptedRemoved, idx)}
+                          className="mt-1"
+                        />
+                        <p className="text-sm text-muted-foreground">id: {rid.slice(0, 8)}…</p>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* OK items collapsed */}
+              <div>
+                <button
+                  className="text-xs uppercase tracking-wider text-muted-foreground font-medium hover:text-foreground"
+                  onClick={() => setShowOk(s => !s)}
+                >
+                  OK ({diff.ok.length}) — {showOk ? "hide" : "show"}
+                </button>
+                {showOk && diff.ok.length > 0 && (
+                  <div className="mt-2 space-y-0.5 max-h-40 overflow-auto">
+                    {diff.ok.map((oid, idx) => (
+                      <p key={idx} className="text-[11px] text-muted-foreground font-mono">{oid}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="p-4 border-t border-border flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">{totalAccepted} change{totalAccepted === 1 ? "" : "s"} selected</span>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+            <Button size="sm" disabled={totalAccepted === 0 || isLoading || !!error} onClick={handleApply}>
+              Apply {totalAccepted} change{totalAccepted === 1 ? "" : "s"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const PRIORITY_BADGE: Record<string, string> = {
   blocker: "bg-destructive/10 text-destructive border-destructive/30",
   important: "bg-warning/10 text-warning border-warning/30",
@@ -1033,6 +1248,42 @@ function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnTyp
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["legal", id] }),
   });
 
+  const [showReview, setShowReview] = useState(false);
+  const [reviewDiff, setReviewDiff] = useState<LegalReviewDiff | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const reviewMutation = useMutation({
+    mutationFn: () => api.projects.legal.review(id),
+    onSuccess: (diff) => {
+      setReviewDiff(diff);
+      setReviewError(null);
+    },
+    onError: (err: any) => {
+      setReviewError(err?.message ?? "Review failed");
+    },
+  });
+
+  const applyReviewMutation = useMutation({
+    mutationFn: (accepted: {
+      stale: { id: string; status_note: string }[];
+      rename: { id: string; new_item: string }[];
+      missing: LegalReviewMissingItem[];
+      removed: string[];
+    }) => api.projects.legal.applyReview(id, accepted),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["legal", id] });
+      setShowReview(false);
+      setReviewDiff(null);
+    },
+  });
+
+  const handleOpenReview = () => {
+    setShowReview(true);
+    setReviewDiff(null);
+    setReviewError(null);
+    reviewMutation.mutate();
+  };
+
   const activeCodes = countries.map((c: ProjectCountry) => c.country_code);
   const availableCountries = COUNTRIES.filter(c => !activeCodes.includes(c.code));
 
@@ -1073,7 +1324,21 @@ function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnTyp
       {/* Add country card */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Add Country / Region</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium">Add Country / Region</CardTitle>
+            {legalItems.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={handleOpenReview}
+                disabled={reviewMutation.isPending}
+              >
+                <RefreshCw size={12} className={cn("mr-1.5", reviewMutation.isPending && "animate-spin")} />
+                Review compliance
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2">
@@ -1217,6 +1482,17 @@ function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnTyp
         <div className="text-sm text-muted-foreground text-center py-8">
           No countries added yet. Select a country above to get started with compliance tracking.
         </div>
+      )}
+
+      {showReview && (
+        <LegalReviewModal
+          diff={reviewDiff}
+          isLoading={reviewMutation.isPending}
+          error={reviewError}
+          onClose={() => setShowReview(false)}
+          onApply={(accepted) => applyReviewMutation.mutate(accepted)}
+          onRetry={() => { setReviewError(null); reviewMutation.mutate(); }}
+        />
       )}
     </div>
   );
