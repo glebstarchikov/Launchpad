@@ -4,6 +4,22 @@ import { requireAuth } from "../middleware/auth.ts";
 import type { Project, Idea } from "../types/index.ts";
 import { isLLMAvailable } from "../lib/llm.ts";
 import { isWhisperAvailable } from "../lib/whisper.ts";
+import { getMonitorStatusMap, normalizeUrl } from "../lib/uptimerobot.ts";
+
+interface ActionItem {
+  id: string;
+  severity: "critical" | "warning" | "info";
+  category:
+    | "site-down" | "compliance-blocker" | "tech-debt-high" | "launch-blocker"
+    | "stale-project" | "overdue-goal" | "needs-review" | "stale-mrr"
+    | "compliance-important" | "news-unread";
+  label: string;
+  detail: string | null;
+  project_id: string | null;
+  project_name: string | null;
+  target: "project" | "legal" | "checklist" | "tech-debt" | "goals" | "news";
+  created_at: number;
+}
 
 const router = new Hono<{ Variables: { userId: string } }>();
 
@@ -69,6 +85,269 @@ router.get("/dashboard", (c) => {
     recentProjects,
     recentIdeas,
   });
+});
+
+router.get("/dashboard/action-items", async (c) => {
+  const userId = c.get("userId");
+  const now = Date.now();
+  const items: ActionItem[] = [];
+
+  // Helper to try each category and swallow errors
+  const run = (name: string, fn: () => void) => {
+    try { fn(); } catch (e) { console.warn(`[action-items] ${name} failed:`, (e as Error).message); }
+  };
+
+  // 1. compliance-blocker (critical)
+  run("compliance-blocker", () => {
+    const rows = db.query<{ id: string; item: string; project_id: string; project_name: string; created_at: number }, [string]>(
+      `SELECT li.id, li.item, p.id as project_id, p.name as project_name, li.created_at
+       FROM legal_items li INNER JOIN projects p ON li.project_id = p.id
+       WHERE p.user_id = ? AND li.priority = 'blocker' AND li.completed = 0`
+    ).all(userId);
+    for (const r of rows) {
+      items.push({
+        id: `compliance-blocker:${r.id}`,
+        severity: "critical",
+        category: "compliance-blocker",
+        label: r.item,
+        detail: null,
+        project_id: r.project_id,
+        project_name: r.project_name,
+        target: "legal",
+        created_at: r.created_at,
+      });
+    }
+  });
+
+  // 2. tech-debt-high (critical)
+  run("tech-debt-high", () => {
+    const rows = db.query<{ id: string; note: string; project_id: string; project_name: string; created_at: number }, [string]>(
+      `SELECT td.id, td.note, p.id as project_id, p.name as project_name, td.created_at
+       FROM tech_debt td INNER JOIN projects p ON td.project_id = p.id
+       WHERE p.user_id = ? AND td.severity = 'high' AND td.resolved = 0`
+    ).all(userId);
+    for (const r of rows) {
+      items.push({
+        id: `tech-debt-high:${r.id}`,
+        severity: "critical",
+        category: "tech-debt-high",
+        label: r.note.slice(0, 80),
+        detail: null,
+        project_id: r.project_id,
+        project_name: r.project_name,
+        target: "tech-debt",
+        created_at: r.created_at,
+      });
+    }
+  });
+
+  // 3. launch-blocker (critical)
+  run("launch-blocker", () => {
+    const rows = db.query<{ id: string; item: string; project_id: string; project_name: string; created_at: number }, [string]>(
+      `SELECT lc.id, lc.item, p.id as project_id, p.name as project_name, lc.created_at
+       FROM launch_checklist lc INNER JOIN projects p ON lc.project_id = p.id
+       WHERE p.user_id = ? AND lc.priority = 'blocker' AND lc.completed = 0`
+    ).all(userId);
+    for (const r of rows) {
+      items.push({
+        id: `launch-blocker:${r.id}`,
+        severity: "critical",
+        category: "launch-blocker",
+        label: r.item,
+        detail: null,
+        project_id: r.project_id,
+        project_name: r.project_name,
+        target: "checklist",
+        created_at: r.created_at,
+      });
+    }
+  });
+
+  // 4. site-down (critical) — requires UptimeRobot
+  try {
+    const statusMap = await getMonitorStatusMap();
+    if (statusMap.size > 0) {
+      const projects = db.query<{ id: string; name: string; url: string | null }, [string]>(
+        "SELECT id, name, url FROM projects WHERE user_id = ? AND url IS NOT NULL AND url != ''"
+      ).all(userId);
+      for (const p of projects) {
+        if (!p.url) continue;
+        const status = statusMap.get(normalizeUrl(p.url));
+        if (status === "down") {
+          items.push({
+            id: `site-down:${p.id}`,
+            severity: "critical",
+            category: "site-down",
+            label: `Site down: ${p.url}`,
+            detail: null,
+            project_id: p.id,
+            project_name: p.name,
+            target: "project",
+            created_at: now,
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("[action-items] site-down failed:", (e as Error).message);
+  }
+
+  // 5. stale-project (warning)
+  run("stale-project", () => {
+    const fourteenDaysAgo = now - 14 * 86400000;
+    const sixtyDaysAgo = now - 60 * 86400000;
+    const rows = db.query<{ id: string; name: string; stage: string; updated_at: number }, [string, number, number]>(
+      `SELECT id, name, stage, updated_at FROM projects
+       WHERE user_id = ?
+         AND ((stage IN ('building','beta','live') AND updated_at < ?) OR (stage = 'idea' AND updated_at < ?))
+         AND stage != 'sunset'`
+    ).all(userId, fourteenDaysAgo, sixtyDaysAgo);
+    for (const r of rows) {
+      const days = Math.floor((now - r.updated_at) / 86400000);
+      items.push({
+        id: `stale-project:${r.id}`,
+        severity: "warning",
+        category: "stale-project",
+        label: `Stale: ${r.stage} for ${days} days`,
+        detail: null,
+        project_id: r.id,
+        project_name: r.name,
+        target: "project",
+        created_at: r.updated_at,
+      });
+    }
+  });
+
+  // 6. overdue-goal (warning)
+  run("overdue-goal", () => {
+    const rows = db.query<{ id: string; description: string; project_id: string; project_name: string; created_at: number }, [string, number]>(
+      `SELECT g.id, g.description, p.id as project_id, p.name as project_name, g.created_at
+       FROM goals g INNER JOIN projects p ON g.project_id = p.id
+       WHERE p.user_id = ? AND g.target_date < ? AND g.completed = 0 AND g.target_date IS NOT NULL`
+    ).all(userId, now);
+    for (const r of rows) {
+      items.push({
+        id: `overdue-goal:${r.id}`,
+        severity: "warning",
+        category: "overdue-goal",
+        label: `Overdue goal: ${r.description.slice(0, 80)}`,
+        detail: null,
+        project_id: r.project_id,
+        project_name: r.project_name,
+        target: "goals",
+        created_at: r.created_at,
+      });
+    }
+  });
+
+  // 7. needs-review (warning)
+  run("needs-review", () => {
+    const rows = db.query<{ project_id: string; project_name: string; cnt: number; max_created: number }, [string]>(
+      `SELECT p.id as project_id, p.name as project_name, COUNT(*) as cnt, MAX(li.created_at) as max_created
+       FROM legal_items li INNER JOIN projects p ON li.project_id = p.id
+       WHERE p.user_id = ? AND li.status_note IS NOT NULL AND li.completed = 0
+       GROUP BY p.id, p.name`
+    ).all(userId);
+    for (const r of rows) {
+      items.push({
+        id: `needs-review:${r.project_id}`,
+        severity: "warning",
+        category: "needs-review",
+        label: `${r.cnt} compliance items need review`,
+        detail: null,
+        project_id: r.project_id,
+        project_name: r.project_name,
+        target: "legal",
+        created_at: r.max_created ?? now,
+      });
+    }
+  });
+
+  // 8. stale-mrr (warning)
+  run("stale-mrr", () => {
+    const thirtyDaysAgo = now - 30 * 86400000;
+    const rows = db.query<{ id: string; name: string; latest: number | null }, [string, number]>(
+      `SELECT p.id, p.name, (SELECT MAX(recorded_at) FROM mrr_history WHERE project_id = p.id) as latest
+       FROM projects p
+       WHERE p.user_id = ? AND p.type = 'for-profit' AND p.stage IN ('live','growing')
+         AND (latest IS NULL OR latest < ?)`
+    ).all(userId, thirtyDaysAgo);
+    for (const r of rows) {
+      items.push({
+        id: `stale-mrr:${r.id}`,
+        severity: "warning",
+        category: "stale-mrr",
+        label: r.latest
+          ? `MRR not updated in ${Math.floor((now - r.latest) / 86400000)} days`
+          : "MRR never recorded",
+        detail: null,
+        project_id: r.id,
+        project_name: r.name,
+        target: "project",
+        created_at: r.latest ?? now,
+      });
+    }
+  });
+
+  // 9. compliance-important (warning)
+  run("compliance-important", () => {
+    const rows = db.query<{ id: string; item: string; project_id: string; project_name: string; created_at: number }, [string]>(
+      `SELECT li.id, li.item, p.id as project_id, p.name as project_name, li.created_at
+       FROM legal_items li INNER JOIN projects p ON li.project_id = p.id
+       WHERE p.user_id = ? AND li.priority = 'important' AND li.completed = 0`
+    ).all(userId);
+    for (const r of rows) {
+      items.push({
+        id: `compliance-important:${r.id}`,
+        severity: "warning",
+        category: "compliance-important",
+        label: r.item,
+        detail: null,
+        project_id: r.project_id,
+        project_name: r.project_name,
+        target: "legal",
+        created_at: r.created_at,
+      });
+    }
+  });
+
+  // 10. news-unread (info) — top 3
+  run("news-unread", () => {
+    const rows = db.query<{ id: string; title: string; created_at: number; relevance_score: number }, [string]>(
+      `SELECT id, title, created_at, relevance_score FROM news_items
+       WHERE user_id = ? AND read = 0 AND relevance_score > 0.7
+       ORDER BY relevance_score DESC, created_at DESC LIMIT 3`
+    ).all(userId);
+    for (const r of rows) {
+      items.push({
+        id: `news-unread:${r.id}`,
+        severity: "info",
+        category: "news-unread",
+        label: r.title.slice(0, 80),
+        detail: `${Math.round(r.relevance_score * 100)}% relevant`,
+        project_id: null,
+        project_name: null,
+        target: "news",
+        created_at: r.created_at,
+      });
+    }
+  });
+
+  // Sort: critical → warning → info; within severity, newest first
+  const sevOrder: Record<string, number> = { critical: 0, warning: 1, info: 2 };
+  items.sort((a, b) => {
+    const diff = sevOrder[a.severity] - sevOrder[b.severity];
+    if (diff !== 0) return diff;
+    return b.created_at - a.created_at;
+  });
+
+  const counts = {
+    critical: items.filter(i => i.severity === "critical").length,
+    warning: items.filter(i => i.severity === "warning").length,
+    info: items.filter(i => i.severity === "info").length,
+  };
+
+  return c.json({ items, counts, generated_at: now });
 });
 
 router.post("/ping", async (c) => {
