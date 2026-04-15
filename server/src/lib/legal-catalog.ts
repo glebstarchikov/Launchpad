@@ -502,6 +502,394 @@ export const LEGAL_CATALOG: LegalCatalogItem[] = [
     project_types: ["for-profit"],
     countries: ["RU"],
   },
+
+  // ============================================================
+  // Germany (DE) — country-specific extras (on top of EU items)
+  // ============================================================
+  {
+    key: "de-impressum",
+    item: "Impressum (legally required imprint)",
+    priority: "blocker",
+    category: "terms",
+    why: "Telemediengesetz §5 requires every German commercial website to publish an Impressum disclosing operator identity, address, contact info, business registration, VAT ID, and (for media) editorial responsibility. Easily enforced via Abmahnung (cease-and-desist letters from law firms).",
+    action: "Publish an Impressum page (/impressum) with: full legal name, postal address (no PO box), email, phone, register entry (Handelsregister number), VAT ID (USt-IdNr.), and any required regulatory authority info.",
+    resources: [
+      { label: "TMG §5 (full text)", url: "https://www.gesetze-im-internet.de/tmg/__5.html" },
+      { label: "e-Recht24 Impressum generator", url: "https://www.e-recht24.de/impressum-generator.html" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["DE"],
+  },
+  {
+    key: "de-bdsg-supplemental",
+    item: "BDSG supplemental privacy provisions (employee data, video surveillance)",
+    priority: "recommended",
+    category: "privacy",
+    why: "Bundesdatenschutzgesetz (BDSG) supplements GDPR with German-specific rules around employee data processing, video surveillance, and credit scoring. If you handle employee or hiring data, BDSG applies.",
+    action: "Review BDSG for relevance: employee data processing rules (§26), works council consultation requirements, video surveillance disclosures. Add a German employee privacy notice if you have German employees.",
+    resources: [
+      { label: "BDSG full text", url: "https://www.gesetze-im-internet.de/bdsg_2018/" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["DE"],
+  },
+  {
+    key: "de-ttdsg",
+    item: "TTDSG cookie/tracking consent (German implementation of ePrivacy)",
+    priority: "important",
+    category: "privacy",
+    why: "Telekommunikation-Telemedien-Datenschutz-Gesetz (TTDSG) §25 codifies the cookie consent requirement in German law. Effective Dec 2021. Penalties via the Bundesnetzagentur and Aufsichtsbehörde.",
+    action: "Ensure your cookie consent banner blocks all non-essential storage access until consent. The same banner satisfying EU ePrivacy generally satisfies TTDSG, but the German Aufsichtsbehörden expect strict implementation.",
+    resources: [
+      { label: "TTDSG full text", url: "https://www.gesetze-im-internet.de/ttdsg/" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["DE"],
+  },
+
+  // ============================================================
+  // France (FR) — country-specific extras
+  // ============================================================
+  {
+    key: "fr-cnil-mentions",
+    item: "CNIL mentions légales + Privacy Policy compliant with French interpretation",
+    priority: "blocker",
+    category: "privacy",
+    why: "Loi Informatique et Libertés + GDPR as enforced by CNIL has stricter cookie consent and transparency expectations than other EU regulators. CNIL fines reach €100M+.",
+    action: "Publish 'Mentions légales' (legal notices) + 'Politique de confidentialité' (Privacy Policy) in French. Implement CNIL-compliant cookie banner: clear accept/refuse buttons, no dark patterns, granular categories.",
+    resources: [
+      { label: "CNIL website", url: "https://www.cnil.fr/" },
+      { label: "CNIL cookie guidance", url: "https://www.cnil.fr/en/cookies-and-other-tracking-devices" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["FR"],
+  },
+  {
+    key: "fr-toubon-language",
+    item: "French language for consumer-facing content (Toubon Law)",
+    priority: "important",
+    category: "terms",
+    why: "Loi Toubon (94-665) requires consumer-facing commercial communications, contracts, and product info to be in French. Translations into other languages are allowed alongside, but French is mandatory.",
+    action: "Provide French translations of all consumer-facing pages: ToS, Privacy, signup, billing, support. Marketing copy aimed at French consumers must be in French.",
+    resources: [
+      { label: "Loi Toubon (Légifrance)", url: "https://www.legifrance.gouv.fr/loda/id/JORFTEXT000000349929/" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["FR"],
+  },
+
+  // ============================================================
+  // Netherlands (NL) — country-specific extras
+  // ============================================================
+  {
+    key: "nl-ap-supervisory",
+    item: "Autoriteit Persoonsgegevens (AP) as supervisory authority — local contact",
+    priority: "important",
+    category: "privacy",
+    why: "Dutch DPA (Autoriteit Persoonsgegevens) is the supervisory authority for organizations established in NL or processing NL residents' data. AP has been increasingly active with enforcement.",
+    action: "List AP as your supervisory authority in your Dutch Privacy Policy. Be ready to respond to AP inquiries within their stated deadlines (typically 4-6 weeks).",
+    resources: [
+      { label: "Autoriteit Persoonsgegevens", url: "https://autoriteitpersoonsgegevens.nl/" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["NL"],
+  },
+  {
+    key: "nl-dutch-language-consumer",
+    item: "Dutch language for consumer terms (consumer protection)",
+    priority: "recommended",
+    category: "terms",
+    why: "Dutch consumer protection law expects contract terms aimed at Dutch consumers to be in Dutch (or another language the consumer can reasonably understand). English-only ToS may be unenforceable against Dutch consumers.",
+    action: "Provide a Dutch translation of consumer-facing ToS and Privacy Policy. The Dutch version should be the binding version for Dutch consumers.",
+    resources: [
+      { label: "Consumentenbond consumer rights", url: "https://www.consumentenbond.nl/" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["NL"],
+  },
+
+  // ============================================================
+  // Canada (CA)
+  // ============================================================
+  {
+    key: "ca-pipeda-privacy",
+    item: "PIPEDA-compliant Privacy Policy",
+    priority: "blocker",
+    category: "privacy",
+    why: "Personal Information Protection and Electronic Documents Act governs commercial collection and use of personal information across most of Canada. Quebec has its own stricter Law 25.",
+    action: "Publish a Privacy Policy disclosing: information collected, purposes, consent mechanism, retention, third-party sharing, individual access rights, and complaint process. Designate a Privacy Officer.",
+    resources: [
+      { label: "OPC PIPEDA guidance", url: "https://www.priv.gc.ca/en/privacy-topics/privacy-laws-in-canada/the-personal-information-protection-and-electronic-documents-act-pipeda/" },
+      { label: "Law 25 (Quebec)", url: "https://www.cai.gouv.qc.ca/" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["CA"],
+  },
+  {
+    key: "ca-casl",
+    item: "CASL compliance for commercial electronic messages",
+    priority: "important",
+    category: "privacy",
+    why: "Canada's Anti-Spam Legislation requires express or implied consent before sending commercial electronic messages, plus sender identification and unsubscribe in every message. Penalties up to CAD $10M per violation.",
+    action: "Obtain express consent at signup (separate checkbox). Identify sender in every CEM. Provide a working unsubscribe link with effect within 10 business days. Keep proof of consent.",
+    resources: [
+      { label: "CRTC CASL guidance", url: "https://crtc.gc.ca/eng/internet/anti.htm" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["CA"],
+  },
+  {
+    key: "ca-bilingual-quebec",
+    item: "French language for Quebec consumers (Charter of the French Language)",
+    priority: "recommended",
+    category: "terms",
+    why: "Quebec's Charter of the French Language (Bill 96, in force since 2022) requires consumer-facing commerce in Quebec to be available in French. Applies to websites targeting Quebec consumers.",
+    action: "Provide French translations of consumer-facing pages if you target Quebec users. The French version must be at least as prominent as English.",
+    resources: [
+      { label: "Office québécois de la langue française", url: "https://www.oqlf.gouv.qc.ca/" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["CA"],
+  },
+
+  // ============================================================
+  // Australia (AU)
+  // ============================================================
+  {
+    key: "au-privacy-act",
+    item: "Privacy Policy compliant with Australian Privacy Principles (APPs)",
+    priority: "blocker",
+    category: "privacy",
+    why: "Privacy Act 1988 (Cth) and the 13 APPs apply to most businesses with annual turnover over AUD $3M, plus all health service providers. Substantial 2023 reforms increase penalties to AUD $50M.",
+    action: "Publish a Privacy Policy covering the 13 APPs: open and transparent management, anonymity, collection, dealing with personal info, direct marketing, use/disclosure, government identifiers, quality, security, access, correction, cross-border disclosure, identifier adoption.",
+    resources: [
+      { label: "OAIC Privacy Act guidance", url: "https://www.oaic.gov.au/privacy" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["AU"],
+  },
+  {
+    key: "au-spam-act",
+    item: "Spam Act 2003 compliance for commercial email",
+    priority: "important",
+    category: "privacy",
+    why: "Spam Act requires consent (express or inferred), sender identification, and unsubscribe facility in every commercial electronic message. ACMA enforces with penalties up to AUD $2.2M per day for repeat offenses.",
+    action: "Obtain consent at signup. Include sender identification + working unsubscribe in every commercial email. Honor unsubscribes within 5 business days.",
+    resources: [
+      { label: "ACMA Spam Act guide", url: "https://www.acma.gov.au/spam-and-telemarketing" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["AU"],
+  },
+  {
+    key: "au-consumer-law",
+    item: "Australian Consumer Law disclosures",
+    priority: "recommended",
+    category: "terms",
+    why: "ACL provides statutory consumer guarantees that cannot be excluded by contract terms. Contract terms purporting to limit these guarantees are unfair and unenforceable.",
+    action: "Review your ToS for unfair contract terms (especially limitation of liability, refund exclusions). Add ACL disclosures: statutory guarantees apply, refund eligibility, dispute resolution.",
+    resources: [
+      { label: "ACCC consumer guarantees", url: "https://www.accc.gov.au/consumers/buying-products-and-services/consumer-rights-and-guarantees" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["AU"],
+  },
+
+  // ============================================================
+  // India (IN)
+  // ============================================================
+  {
+    key: "in-dpdp-act",
+    item: "DPDP Act 2023 compliance",
+    priority: "blocker",
+    category: "privacy",
+    why: "Digital Personal Data Protection Act 2023 is India's first comprehensive data protection law. Requires consent, purpose limitation, data minimization, breach notification, and grievance redressal. Penalties up to INR 250 crore.",
+    action: "Publish a Privacy Notice in English (and ideally regional languages). Implement consent management, data principal rights (access, correction, erasure, grievance), and a designated Data Protection Officer for significant data fiduciaries.",
+    resources: [
+      { label: "DPDP Act 2023 (PRS Legislative Research)", url: "https://prsindia.org/billtrack/the-digital-personal-data-protection-bill-2023" },
+      { label: "MeitY website", url: "https://www.meity.gov.in/" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["IN"],
+  },
+  {
+    key: "in-it-act-intermediary",
+    item: "IT Act intermediary guidelines compliance",
+    priority: "important",
+    category: "data",
+    why: "IT Act 2000 + Intermediary Guidelines 2021 require online intermediaries to publish rules, designate grievance officers, respond to government takedown requests, and implement traceability for messaging services with >5M Indian users.",
+    action: "Publish intermediary rules. Designate a Grievance Officer (Indian resident). Set up takedown response procedure. For large messaging services, plan for traceability requirements.",
+    resources: [
+      { label: "IT Rules 2021 (MeitY)", url: "https://www.meity.gov.in/content/notification" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["IN"],
+  },
+
+  // ============================================================
+  // Brazil (BR)
+  // ============================================================
+  {
+    key: "br-lgpd",
+    item: "LGPD-compliant Privacy Policy (in Portuguese)",
+    priority: "blocker",
+    category: "privacy",
+    why: "Lei Geral de Proteção de Dados (LGPD) is Brazil's GDPR-equivalent law. Applies to any processing of Brazilian residents' data, including by foreign companies. ANPD enforces with fines up to 2% of revenue (capped at BRL 50M).",
+    action: "Publish a Portuguese Privacy Policy disclosing: data categories, purposes, legal basis, retention, sharing, user rights (access, correction, deletion, portability), and DPO contact. Appoint an Encarregado (DPO).",
+    resources: [
+      { label: "LGPD full text (planalto.gov.br)", url: "http://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709.htm" },
+      { label: "ANPD website", url: "https://www.gov.br/anpd/" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["BR"],
+  },
+  {
+    key: "br-cdc-consumer",
+    item: "Código de Defesa do Consumidor (CDC) compliance",
+    priority: "important",
+    category: "terms",
+    why: "Brazilian Consumer Defense Code provides strong consumer protection that overrides contract terms. Requires clear disclosure of terms, right to cancel digital purchases within 7 days, and prohibits abusive clauses.",
+    action: "Publish ToS in Portuguese covering CDC requirements: clear identification of seller, total price, cancellation right (7-day cooling off for distance sales), refund procedure, complaint channel.",
+    resources: [
+      { label: "CDC full text (planalto.gov.br)", url: "http://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["BR"],
+  },
+
+  // ============================================================
+  // Japan (JP)
+  // ============================================================
+  {
+    key: "jp-appi",
+    item: "APPI-compliant Privacy Policy",
+    priority: "blocker",
+    category: "privacy",
+    why: "Act on the Protection of Personal Information (APPI) is Japan's main data protection law. 2022 amendments strengthened individual rights and breach notification. PPC (Personal Information Protection Commission) enforces.",
+    action: "Publish a Japanese-language Privacy Policy disclosing: personal info handled, purposes, joint use partners, security measures, user rights (disclosure, correction, suspension of use, deletion). Designate a contact point.",
+    resources: [
+      { label: "PPC website (English)", url: "https://www.ppc.go.jp/en/" },
+      { label: "APPI English text", url: "https://www.ppc.go.jp/files/pdf/APPI_english.pdf" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["JP"],
+  },
+  {
+    key: "jp-tokushoho",
+    item: "Specified Commercial Transactions Act disclosures (特定商取引法)",
+    priority: "important",
+    category: "terms",
+    why: "Tokushoho requires online sellers to publish detailed business info: legal name, address, phone, person in charge, payment methods, delivery, refund policy. Consumer Affairs Agency enforces with fines and business suspensions.",
+    action: "Publish a 特定商取引法に基づく表記 (Tokushoho-based disclosure) page with all required fields. Translation: keep it in Japanese; English versions don't satisfy the requirement.",
+    resources: [
+      { label: "Consumer Affairs Agency Tokushoho", url: "https://www.no-trouble.caa.go.jp/" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["JP"],
+  },
+
+  // ============================================================
+  // Singapore (SG)
+  // ============================================================
+  {
+    key: "sg-pdpa",
+    item: "PDPA-compliant Privacy Policy",
+    priority: "blocker",
+    category: "privacy",
+    why: "Personal Data Protection Act 2012 governs collection, use, and disclosure of personal data in Singapore. PDPC (Personal Data Protection Commission) enforces with fines up to SGD $1M or 10% of annual turnover.",
+    action: "Publish a Privacy Policy covering the 11 PDPA obligations: consent, purpose limitation, notification, access and correction, accuracy, protection, retention limitation, transfer limitation, openness, accountability, data breach notification.",
+    resources: [
+      { label: "PDPC PDPA Overview", url: "https://www.pdpc.gov.sg/Overview-of-PDPA/The-Legislation/Personal-Data-Protection-Act" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["SG"],
+  },
+  {
+    key: "sg-spam-control",
+    item: "Spam Control Act for marketing messages",
+    priority: "important",
+    category: "privacy",
+    why: "Singapore's Spam Control Act requires unsolicited commercial electronic messages to include sender identification, unsubscribe option, and 'ADV' label in subject line for unsolicited content.",
+    action: "Identify sender in every marketing message. Provide working unsubscribe within 10 business days. Add 'ADV' or '<ADV>' prefix in subject line for unsolicited commercial messages.",
+    resources: [
+      { label: "Singapore Spam Control Act", url: "https://sso.agc.gov.sg/Act/SCA2007" },
+    ],
+    project_types: ["for-profit"],
+    countries: ["SG"],
+  },
+
+  // ============================================================
+  // Open Source items (universal across all listed countries)
+  // ============================================================
+  {
+    key: "oss-pick-license",
+    item: "Pick an OSS license (MIT / Apache 2.0 / GPL / etc.)",
+    priority: "blocker",
+    category: "ip",
+    why: "Code without an explicit license is 'all rights reserved' by default — nobody can legally use, modify, or distribute it. Picking a license is the single most important legal step for an open-source project.",
+    action: "Pick a license that matches your goals: MIT (most permissive), Apache 2.0 (permissive + patent grant), GPLv3 (copyleft, requires derivative works to also be GPL), AGPL (network use also triggers copyleft). Add the license name to your repo description.",
+    resources: [
+      { label: "choosealicense.com", url: "https://choosealicense.com/" },
+      { label: "OSI approved licenses", url: "https://opensource.org/licenses" },
+    ],
+    project_types: ["open-source"],
+    countries: ["US", "UK", "DE", "FR", "NL", "CA", "AU", "IN", "BR", "JP", "SG", "RU"],
+  },
+  {
+    key: "oss-license-file",
+    item: "Add LICENSE file to repository root",
+    priority: "blocker",
+    category: "ip",
+    why: "GitHub, package registries (npm, PyPI, crates.io), and license-detection tools look for a LICENSE file in the repo root. Without it, your license declaration may not be picked up automatically.",
+    action: "Create a LICENSE file in the repository root containing the full text of your chosen license, with copyright year and holder name. choosealicense.com provides ready-to-paste templates.",
+    resources: [
+      { label: "GitHub Adding a license", url: "https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions/adding-a-license-to-a-repository" },
+    ],
+    project_types: ["open-source"],
+    countries: ["US", "UK", "DE", "FR", "NL", "CA", "AU", "IN", "BR", "JP", "SG", "RU"],
+  },
+  {
+    key: "oss-copyright-headers",
+    item: "Copyright headers in source files",
+    priority: "recommended",
+    category: "ip",
+    why: "Per-file copyright headers make ownership clear when files are extracted from the repo. Some licenses (Apache 2.0) explicitly require this. Helps with attribution in derivative works.",
+    action: "Add a short copyright header to each source file: copyright year, holder name, license SPDX identifier (e.g., 'SPDX-License-Identifier: MIT'). Tools like reuse-tool can automate this.",
+    resources: [
+      { label: "REUSE Software", url: "https://reuse.software/" },
+      { label: "SPDX license list", url: "https://spdx.org/licenses/" },
+    ],
+    project_types: ["open-source"],
+    countries: ["US", "UK", "DE", "FR", "NL", "CA", "AU", "IN", "BR", "JP", "SG", "RU"],
+  },
+  {
+    key: "oss-trademark-check",
+    item: "Trademark check for project name",
+    priority: "recommended",
+    category: "ip",
+    why: "Choosing a project name that conflicts with an existing trademark can lead to forced renames or legal disputes — even for open-source projects. A 5-minute check now prevents painful rebranding later.",
+    action: "Search USPTO TESS, EUIPO TMview, and Google for the proposed name + 'trademark'. Check npm/PyPI/crates.io for naming conflicts. Avoid generic terms and corporate-sounding names of large companies.",
+    resources: [
+      { label: "USPTO TESS trademark search", url: "https://tmsearch.uspto.gov/" },
+      { label: "EUIPO TMview", url: "https://www.tmdn.org/tmview/" },
+    ],
+    project_types: ["open-source"],
+    countries: ["US", "UK", "DE", "FR", "NL", "CA", "AU", "IN", "BR", "JP", "SG", "RU"],
+  },
+  {
+    key: "oss-cla-decision",
+    item: "Contributor License Agreement (CLA) decision",
+    priority: "recommended",
+    category: "ip",
+    why: "CLAs let project owners relicense or commercialize the project later by ensuring contributors grant broad rights. They also create friction that discourages drive-by contributions. Pick the right tradeoff for your project.",
+    action: "Decide: no CLA (simplest, smaller community), DCO (Developer Certificate of Origin — lightweight, used by Linux), or full CLA (formal agreement, used by Apache). Document your choice in CONTRIBUTING.md.",
+    resources: [
+      { label: "DCO explainer", url: "https://developercertificate.org/" },
+      { label: "Apache CLA template", url: "https://www.apache.org/licenses/contributor-agreements.html" },
+    ],
+    project_types: ["open-source"],
+    countries: ["US", "UK", "DE", "FR", "NL", "CA", "AU", "IN", "BR", "JP", "SG", "RU"],
+  },
 ];
 
 export function isEuMember(countryCode: string): boolean {
