@@ -622,6 +622,75 @@ router.post("/:id/legal/review", async (c) => {
   }
 });
 
+// POST /api/projects/:id/legal/review/apply — applies an accepted diff in one transaction
+router.post("/:id/legal/review/apply", async (c) => {
+  if (!ownsProject(c.req.param("id"), c.get("userId"))) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  const projectId = c.req.param("id");
+  const body = await c.req.json();
+
+  const stale: { id: string; status_note: string }[] = Array.isArray(body.stale) ? body.stale : [];
+  const rename: { id: string; new_item: string }[] = Array.isArray(body.rename) ? body.rename : [];
+  const missing: any[] = Array.isArray(body.missing) ? body.missing : [];
+  const removed: string[] = Array.isArray(body.removed) ? body.removed : [];
+
+  const now = Date.now();
+  let applied = 0;
+
+  // bun:sqlite supports synchronous transactions via db.transaction(...)
+  const tx = db.transaction(() => {
+    for (const s of stale) {
+      if (typeof s.id !== "string" || typeof s.status_note !== "string") continue;
+      db.run(
+        "UPDATE legal_items SET status_note = ?, last_reviewed_at = ? WHERE id = ? AND project_id = ?",
+        [s.status_note, now, s.id, projectId]
+      );
+      applied++;
+    }
+    for (const r of rename) {
+      if (typeof r.id !== "string" || typeof r.new_item !== "string") continue;
+      db.run(
+        "UPDATE legal_items SET item = ?, last_reviewed_at = ? WHERE id = ? AND project_id = ?",
+        [r.new_item, now, r.id, projectId]
+      );
+      applied++;
+    }
+    for (const m of missing) {
+      if (typeof m.item !== "string" || typeof m.country_code !== "string") continue;
+      db.run(
+        `INSERT INTO legal_items (id, project_id, country_code, item, completed, created_at,
+          priority, category, why, action, resources, scope, scope_code, last_reviewed_at, status_note)
+         VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+        [
+          crypto.randomUUID(),
+          projectId,
+          m.country_code,
+          m.item,
+          now,
+          m.priority ?? null,
+          m.category ?? null,
+          m.why ?? null,
+          m.action ?? null,
+          JSON.stringify(m.resources ?? []),
+          m.scope ?? "country",
+          m.scope_code ?? null,
+          now,
+        ]
+      );
+      applied++;
+    }
+    for (const id of removed) {
+      if (typeof id !== "string") continue;
+      db.run("DELETE FROM legal_items WHERE id = ? AND project_id = ?", [id, projectId]);
+      applied++;
+    }
+  });
+  tx();
+
+  return c.json({ applied });
+});
+
 // DELETE /api/projects/:id/legal/:itemId
 router.delete("/:id/legal/:itemId", (c) => {
   if (!ownsProject(c.req.param("id"), c.get("userId"))) {
