@@ -57,10 +57,10 @@ router.post("/:id/promote", async (c) => {
 
   // Seed default checklist for new project (promoted ideas default to for-profit)
   const insertItem = db.prepare(
-    "INSERT INTO launch_checklist (id, project_id, item, completed, category, min_stage, sort_order, created_at) VALUES (?, ?, ?, 0, ?, ?, ?, ?)"
+    "INSERT INTO launch_checklist (id, project_id, item, completed, category, min_stage, sort_order, priority, created_at) VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)"
   );
   for (const entry of getDefaultChecklist("for-profit")) {
-    insertItem.run(crypto.randomUUID(), projectId, entry.item, entry.category, entry.min_stage, entry.sort_order, now);
+    insertItem.run(crypto.randomUUID(), projectId, entry.item, entry.category, entry.min_stage, entry.sort_order, entry.priority ?? null, now);
   }
 
   db.run("UPDATE ideas SET status='promoted', promoted_to_project_id=?, updated_at=? WHERE id=?",

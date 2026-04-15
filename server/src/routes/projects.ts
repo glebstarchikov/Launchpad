@@ -40,10 +40,10 @@ router.post("/", async (c) => {
   );
   const projectType = (type ?? "for-profit") as "for-profit" | "open-source";
   const insertItem = db.prepare(
-    "INSERT INTO launch_checklist (id, project_id, item, completed, category, min_stage, sort_order, created_at) VALUES (?, ?, ?, 0, ?, ?, ?, ?)"
+    "INSERT INTO launch_checklist (id, project_id, item, completed, category, min_stage, sort_order, priority, created_at) VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)"
   );
   for (const entry of getDefaultChecklist(projectType)) {
-    insertItem.run(crypto.randomUUID(), id, entry.item, entry.category, entry.min_stage, entry.sort_order, now);
+    insertItem.run(crypto.randomUUID(), id, entry.item, entry.category, entry.min_stage, entry.sort_order, entry.priority ?? null, now);
   }
   const project = db.query<Project, [string]>("SELECT * FROM projects WHERE id = ?").get(id);
   return c.json(project, 201);
@@ -144,13 +144,13 @@ router.post("/:id/launch-checklist", async (c) => {
   if (!ownsProject(c.req.param("id"), c.get("userId"))) {
     return c.json({ error: "Not found" }, 404);
   }
-  const { item, category, min_stage } = await c.req.json();
+  const { item, category, min_stage, priority } = await c.req.json();
   if (!item) return c.json({ error: "item required" }, 400);
   const id = crypto.randomUUID();
   const now = Date.now();
   db.run(
-    "INSERT INTO launch_checklist (id, project_id, item, completed, category, min_stage, sort_order, created_at) VALUES (?, ?, ?, 0, ?, ?, ?, ?)",
-    [id, c.req.param("id"), item, category ?? null, min_stage ?? null, 9999, now]
+    "INSERT INTO launch_checklist (id, project_id, item, completed, category, min_stage, sort_order, priority, created_at) VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)",
+    [id, c.req.param("id"), item, category ?? null, min_stage ?? null, 9999, priority ?? null, now]
   );
   return c.json(
     db.query<LaunchChecklistItem, [string]>("SELECT * FROM launch_checklist WHERE id = ?").get(id),
@@ -163,13 +163,14 @@ router.put("/:id/launch-checklist/:itemId", async (c) => {
   if (!ownsProject(c.req.param("id"), c.get("userId"))) {
     return c.json({ error: "Not found" }, 404);
   }
-  const { completed, item, category, min_stage } = await c.req.json();
+  const { completed, item, category, min_stage, priority } = await c.req.json();
   const sets: string[] = [];
   const params: (string | number | null)[] = [];
   if (completed !== undefined) { sets.push("completed = ?"); params.push(completed ? 1 : 0); }
   if (item !== undefined) { sets.push("item = ?"); params.push(item); }
   if (category !== undefined) { sets.push("category = ?"); params.push(category); }
   if (min_stage !== undefined) { sets.push("min_stage = ?"); params.push(min_stage); }
+  if (priority !== undefined) { sets.push("priority = ?"); params.push(priority); }
   if (sets.length === 0) return c.json({ ok: true });
   params.push(c.req.param("itemId"), c.req.param("id"));
   db.run(`UPDATE launch_checklist SET ${sets.join(", ")} WHERE id = ? AND project_id = ?`, params);
