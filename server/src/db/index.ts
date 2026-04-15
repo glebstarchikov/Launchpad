@@ -37,6 +37,7 @@ try { db.run(`ALTER TABLE tech_debt ADD COLUMN effort TEXT`); } catch {}
 try { db.run(`ALTER TABLE launch_checklist ADD COLUMN category TEXT`); } catch {}
 try { db.run(`ALTER TABLE launch_checklist ADD COLUMN min_stage TEXT`); } catch {}
 try { db.run(`ALTER TABLE launch_checklist ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`); } catch {}
+try { db.run(`ALTER TABLE launch_checklist ADD COLUMN priority TEXT`); } catch {}
 try { db.run(`ALTER TABLE legal_items ADD COLUMN priority TEXT`); } catch {}
 try { db.run(`ALTER TABLE legal_items ADD COLUMN category TEXT`); } catch {}
 try { db.run(`ALTER TABLE legal_items ADD COLUMN why TEXT`); } catch {}
