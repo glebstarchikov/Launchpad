@@ -702,7 +702,6 @@ function RevenueTab({ project: _project, id, queryClient }: { project: Project; 
 }
 
 const COUNTRIES = [
-  { code: "EU", name: "European Union" },
   { code: "US", name: "United States" },
   { code: "UK", name: "United Kingdom" },
   { code: "CA", name: "Canada" },
