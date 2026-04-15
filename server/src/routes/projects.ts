@@ -2,23 +2,11 @@ import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
 import { getDefaultChecklist } from "../lib/constants.ts";
+import { itemsForCountry, itemsForRegion, isEuMember } from "../lib/legal-catalog.ts";
+import type { LegalProjectType, LegalCatalogItem } from "../lib/legal-catalog.ts";
+import { enrichSeedItems } from "../lib/legal-llm.ts";
 import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectCountry, LegalItem, Note } from "../types/index.ts";
 
-const LEGAL_REQUIREMENTS: Record<string, string[]> = {
-  EU:  ["GDPR Privacy Policy", "Cookie Consent Banner", "DPA", "Right to Deletion Flow", "Data Breach Protocol", "ROPA"],
-  US:  ["Terms of Service", "Privacy Policy (CCPA)", "DMCA Policy", "Accessibility Statement (ADA)"],
-  UK:  ["UK GDPR Privacy Policy", "ICO Registration", "Cookie Policy", "Data Retention Policy"],
-  CA:  ["PIPEDA Privacy Policy", "Terms of Service", "Cookie Consent"],
-  AU:  ["Privacy Act Compliance", "Terms of Service", "Cookie Policy"],
-  DE:  ["Impressum", "DSGVO Privacy Policy", "Cookie Consent (ePrivacy)", "DPA"],
-  FR:  ["CNIL Compliance", "GDPR Privacy Policy", "Cookie Consent"],
-  NL:  ["GDPR Privacy Policy", "AP Registration", "Cookie Consent", "DPA"],
-  IN:  ["IT Act Compliance", "Data Protection Policy", "Terms of Service"],
-  BR:  ["LGPD Privacy Policy", "Terms of Service", "Cookie Consent"],
-  JP:  ["APPI Privacy Policy", "Terms of Service"],
-  SG:  ["PDPA Privacy Policy", "Terms of Service", "Data Breach Protocol"],
-  RU:  ["Federal Law No. 152-FZ Privacy Policy", "Roskomnadzor Registration", "Data Localization Compliance", "Terms of Service"],
-};
 
 function ownsProject(projectId: string, userId: string): boolean {
   return db.query<{ id: string }, [string, string]>(
@@ -349,7 +337,7 @@ router.get("/:id/countries", (c) => {
   );
 });
 
-// POST /api/projects/:id/countries — auto-seeds legal items
+// POST /api/projects/:id/countries — auto-seeds rich legal items + LLM-enriched action text
 router.post("/:id/countries", async (c) => {
   if (!ownsProject(c.req.param("id"), c.get("userId"))) {
     return c.json({ error: "Not found" }, 404);
@@ -357,25 +345,92 @@ router.post("/:id/countries", async (c) => {
   const { country_code, country_name } = await c.req.json();
   if (!country_code || !country_name) return c.json({ error: "country_code and country_name required" }, 400);
 
-  const id = crypto.randomUUID();
+  const projectId = c.req.param("id");
+  const project = db.query<{ name: string; description: string | null; type: string; stage: string }, [string]>(
+    "SELECT name, description, type, stage FROM projects WHERE id = ?"
+  ).get(projectId);
+  if (!project) return c.json({ error: "Not found" }, 404);
+
+  const projectType: LegalProjectType = project.type === "open-source" ? "open-source" : "for-profit";
+
+  // Insert the country row
+  const countryRowId = crypto.randomUUID();
   db.run("INSERT INTO project_countries (id, project_id, country_code, country_name) VALUES (?, ?, ?, ?)",
-    [id, c.req.param("id"), country_code, country_name]);
+    [countryRowId, projectId, country_code, country_name]);
 
-  // Seed legal items (skip if already exist for this country)
-  const items = LEGAL_REQUIREMENTS[country_code] ?? [];
-  const existing = db.query<{ item: string }, [string, string]>(
-    "SELECT item FROM legal_items WHERE project_id = ? AND country_code = ?"
-  ).all(c.req.param("id"), country_code).map(r => r.item);
+  // Build the queue of items to seed
+  const queue: { catalogItem: LegalCatalogItem; targetCountryCode: string; scope: "country" | "region"; scopeCode: string | null }[] = [];
 
-  const now = Date.now();
-  for (const item of items) {
-    if (!existing.includes(item)) {
-      db.run("INSERT INTO legal_items (id, project_id, country_code, item, completed, created_at) VALUES (?, ?, ?, ?, 0, ?)",
-        [crypto.randomUUID(), c.req.param("id"), country_code, item, now]);
+  // 1. Items for this specific country
+  for (const it of itemsForCountry(country_code, projectType)) {
+    queue.push({ catalogItem: it, targetCountryCode: country_code, scope: "country", scopeCode: null });
+  }
+
+  // 2. EU auto-attach: if this is an EU member and the project has no existing EU region items, queue them
+  if (isEuMember(country_code)) {
+    const existingEu = db.query<{ id: string }, [string]>(
+      "SELECT id FROM legal_items WHERE project_id = ? AND scope = 'region' AND scope_code = 'eu' LIMIT 1"
+    ).get(projectId);
+    if (!existingEu) {
+      for (const it of itemsForRegion("eu", projectType)) {
+        queue.push({ catalogItem: it, targetCountryCode: "", scope: "region", scopeCode: "eu" });
+      }
     }
   }
 
-  return c.json(db.query<ProjectCountry, [string]>("SELECT * FROM project_countries WHERE id = ?").get(id), 201);
+  // 3. Skip items already seeded for this country (idempotent re-add)
+  const existingKeys = new Set(
+    db.query<{ item: string }, [string, string]>(
+      "SELECT item FROM legal_items WHERE project_id = ? AND country_code = ?"
+    ).all(projectId, country_code).map(r => r.item)
+  );
+  const filteredQueue = queue.filter(q => !existingKeys.has(q.catalogItem.item));
+
+  // 4. Run LLM enrichment (5s timeout, falls back to generic actions on failure)
+  const enrichments = await enrichSeedItems(
+    {
+      name: project.name,
+      description: project.description,
+      type: project.type,
+      stage: project.stage,
+    },
+    filteredQueue.map(q => q.catalogItem)
+  );
+  const enrichmentByKey = new Map(enrichments.map(e => [e.key, e]));
+
+  // 5. Insert each item with full metadata
+  const now = Date.now();
+  for (const q of filteredQueue) {
+    const enrichment = enrichmentByKey.get(q.catalogItem.key);
+    const personalizedAction = enrichment?.personalized_action ?? q.catalogItem.action;
+    const featureGateNote = enrichment?.skip_due_to_feature_gate
+      ? `Only relevant if your service has ${q.catalogItem.feature_gated} features — review and delete if not applicable`
+      : null;
+
+    db.run(
+      `INSERT INTO legal_items (id, project_id, country_code, item, completed, created_at,
+        priority, category, why, action, resources, scope, scope_code, last_reviewed_at, status_note)
+       VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        crypto.randomUUID(),
+        projectId,
+        q.targetCountryCode,
+        q.catalogItem.item,
+        now,
+        q.catalogItem.priority,
+        q.catalogItem.category,
+        q.catalogItem.why,
+        personalizedAction,
+        JSON.stringify(q.catalogItem.resources),
+        q.scope,
+        q.scopeCode,
+        now,
+        featureGateNote,
+      ]
+    );
+  }
+
+  return c.json(db.query<ProjectCountry, [string]>("SELECT * FROM project_countries WHERE id = ?").get(countryRowId), 201);
 });
 
 // DELETE /api/projects/:id/countries/:cId — FK CASCADE removes legal_items automatically
