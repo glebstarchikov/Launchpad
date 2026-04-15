@@ -23,7 +23,7 @@ import { StageBadge, TypeBadge, TagInput, PingDot, fmt, Empty } from "@/componen
 import FilesView from "@/components/FilesView";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, TechDebtSeverity, TechDebtCategory, TechDebtEffort, MrrEntry, Goal, ProjectStage, ProjectType, ProjectCountry, LegalItem, Note, GitHubRepoData } from "@/lib/types";
+import type { Project, ProjectLink, LaunchChecklistItem, ChecklistCategory, TechDebtItem, TechDebtSeverity, TechDebtCategory, TechDebtEffort, MrrEntry, Goal, ProjectStage, ProjectType, ProjectCountry, LegalItem, Note, GitHubRepoData } from "@/lib/types";
 
 const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
 const TYPES: ProjectType[] = ["for-profit", "open-source"];
@@ -176,7 +176,7 @@ function OverviewTab({ project, id, queryClient, navigate }: OverviewTabProps) {
       {/* Left column — spans 2/3 */}
       <div className="lg:col-span-2 space-y-4">
         <ProjectInfoCard project={project} id={id} queryClient={queryClient} />
-        <LaunchChecklistCard id={id} queryClient={queryClient} />
+        <LaunchChecklistCard id={id} projectStage={project.stage} queryClient={queryClient} />
       </div>
 
       {/* Right column — 1/3 */}
@@ -1198,8 +1198,29 @@ function ProjectInfoCard({ project, id, queryClient }: { project: Project; id: s
   );
 }
 
-function LaunchChecklistCard({ id, queryClient }: { id: string; queryClient: ReturnType<typeof useQueryClient> }) {
-  const [newItem, setNewItem] = useState("");
+const CATEGORY_ORDER: ChecklistCategory[] = ["validation", "build", "infra", "legal", "marketing", "launch", "growth"];
+
+const CATEGORY_LABELS: Record<ChecklistCategory, string> = {
+  validation: "Validation & Research",
+  build: "Build & MVP",
+  infra: "Technical Infrastructure",
+  legal: "Legal & Admin",
+  marketing: "Marketing & Content",
+  launch: "Launch Prep",
+  growth: "Post-launch Growth",
+};
+
+const STAGE_ORDER: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
+
+function isStageRelevant(itemMinStage: ProjectStage | null, projectStage: ProjectStage): boolean {
+  if (!itemMinStage) return true;
+  const itemIdx = STAGE_ORDER.indexOf(itemMinStage);
+  const projectIdx = STAGE_ORDER.indexOf(projectStage);
+  return itemIdx <= projectIdx;
+}
+
+function LaunchChecklistCard({ id, projectStage, queryClient }: { id: string; projectStage: ProjectStage; queryClient: ReturnType<typeof useQueryClient> }) {
+  const [newItemByCategory, setNewItemByCategory] = useState<Record<string, string>>({});
 
   const { data: items = [] } = useQuery({
     queryKey: ["checklist", id],
@@ -1211,15 +1232,16 @@ function LaunchChecklistCard({ id, queryClient }: { id: string; queryClient: Ret
 
   const toggleItem = useMutation({
     mutationFn: ({ itemId, completed }: { itemId: string; completed: boolean }) =>
-      api.projects.checklist.update(id, itemId, completed),
+      api.projects.checklist.update(id, itemId, { completed }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["checklist", id] }),
   });
 
   const addItem = useMutation({
-    mutationFn: (item: string) => api.projects.checklist.create(id, item),
-    onSuccess: () => {
+    mutationFn: (data: { item: string; category?: ChecklistCategory }) =>
+      api.projects.checklist.create(id, data),
+    onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["checklist", id] });
-      setNewItem("");
+      setNewItemByCategory((prev) => ({ ...prev, [vars.category ?? "general"]: "" }));
     },
   });
 
@@ -1227,6 +1249,19 @@ function LaunchChecklistCard({ id, queryClient }: { id: string; queryClient: Ret
     mutationFn: (itemId: string) => api.projects.checklist.delete(id, itemId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["checklist", id] }),
   });
+
+  const grouped: Record<string, LaunchChecklistItem[]> = {};
+  for (const item of items) {
+    const key = item.category ?? "general";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(item);
+  }
+
+  const renderOrder: string[] = [];
+  if (grouped["general"]?.length) renderOrder.push("general");
+  for (const cat of CATEGORY_ORDER) {
+    if (!renderOrder.includes(cat)) renderOrder.push(cat);
+  }
 
   return (
     <Card>
@@ -1237,51 +1272,81 @@ function LaunchChecklistCard({ id, queryClient }: { id: string; queryClient: Ret
         </div>
         <Progress value={pct} className="h-2 mt-2" />
       </CardHeader>
-      <CardContent className="space-y-1.5">
-        {items.map((item: LaunchChecklistItem) => (
-          <div key={item.id} className="flex items-center gap-2 group">
-            <Checkbox
-              id={`chk-${item.id}`}
-              checked={item.completed === 1}
-              onCheckedChange={(v) => toggleItem.mutate({ itemId: item.id, completed: !!v })}
-            />
-            <label
-              htmlFor={`chk-${item.id}`}
-              className={cn(
-                "text-sm flex-1 cursor-pointer",
-                item.completed === 1 && "line-through text-muted-foreground"
+      <CardContent className="space-y-4">
+        {renderOrder.map((catKey) => {
+          const categoryItems = grouped[catKey] ?? [];
+          const catLabel = catKey === "general" ? "General" : CATEGORY_LABELS[catKey as ChecklistCategory];
+          const catCompleted = categoryItems.filter((i) => i.completed === 1).length;
+          const newValue = newItemByCategory[catKey] ?? "";
+
+          return (
+            <div key={catKey} className="space-y-1.5">
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+                  {catLabel}
+                </h4>
+                {categoryItems.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground tabular-nums">
+                    {catCompleted}/{categoryItems.length}
+                  </span>
+                )}
+              </div>
+              {categoryItems.map((item: LaunchChecklistItem) => {
+                const relevant = isStageRelevant(item.min_stage, projectStage);
+                return (
+                  <div key={item.id} className={cn("flex items-center gap-2 group", !relevant && "opacity-50")}>
+                    <Checkbox
+                      id={`chk-${item.id}`}
+                      checked={item.completed === 1}
+                      onCheckedChange={(v) => toggleItem.mutate({ itemId: item.id, completed: !!v })}
+                    />
+                    <label
+                      htmlFor={`chk-${item.id}`}
+                      className={cn(
+                        "text-sm flex-1 cursor-pointer",
+                        item.completed === 1 && "line-through text-muted-foreground"
+                      )}
+                    >
+                      {item.item}
+                    </label>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:text-destructive"
+                      onClick={() => deleteItem.mutate(item.id)}
+                    >
+                      <Trash2 size={11} />
+                    </Button>
+                  </div>
+                );
+              })}
+              {catKey !== "general" && (
+                <div className="flex gap-2 pt-1">
+                  <Input
+                    value={newValue}
+                    onChange={(e) => setNewItemByCategory((prev) => ({ ...prev, [catKey]: e.target.value }))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newValue.trim()) {
+                        addItem.mutate({ item: newValue.trim(), category: catKey as ChecklistCategory });
+                      }
+                    }}
+                    placeholder={`Add to ${catLabel}...`}
+                    className="text-xs h-8"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs"
+                    disabled={!newValue.trim() || addItem.isPending}
+                    onClick={() => addItem.mutate({ item: newValue.trim(), category: catKey as ChecklistCategory })}
+                  >
+                    Add
+                  </Button>
+                </div>
               )}
-            >
-              {item.item}
-            </label>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:text-destructive"
-              onClick={() => deleteItem.mutate(item.id)}
-            >
-              <Trash2 size={11} />
-            </Button>
-          </div>
-        ))}
-        {/* Add item */}
-        <div className="flex gap-2 pt-2">
-          <Input
-            value={newItem}
-            onChange={(e) => setNewItem(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && newItem.trim()) { addItem.mutate(newItem.trim()); } }}
-            placeholder="Add checklist item..."
-            className="text-sm"
-          />
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={!newItem.trim() || addItem.isPending}
-            onClick={() => addItem.mutate(newItem.trim())}
-          >
-            <Plus size={13} />
-          </Button>
-        </div>
+            </div>
+          );
+        })}
       </CardContent>
     </Card>
   );
