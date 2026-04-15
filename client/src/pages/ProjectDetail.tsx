@@ -1321,24 +1321,30 @@ function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnTyp
         ⚠️ <span className="font-medium text-warning">Compliance suggestions, not legal advice.</span> This list is curated from public sources and personalized by an AI. Consult a lawyer before launching in regulated industries.
       </div>
 
+      {/* Review compliance action bar */}
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] text-muted-foreground">
+          {legalItems.length > 0
+            ? `${legalItems.length} compliance items tracked`
+            : "Add a country below to seed compliance items."}
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs"
+          onClick={handleOpenReview}
+          disabled={reviewMutation.isPending || legalItems.length === 0}
+          title={legalItems.length === 0 ? "Add at least one country first" : "Run an LLM freshness review"}
+        >
+          <RefreshCw size={12} className={cn("mr-1.5", reviewMutation.isPending && "animate-spin")} />
+          {reviewMutation.isPending ? "Reviewing..." : "Review compliance"}
+        </Button>
+      </div>
+
       {/* Add country card */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium">Add Country / Region</CardTitle>
-            {legalItems.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={handleOpenReview}
-                disabled={reviewMutation.isPending}
-              >
-                <RefreshCw size={12} className={cn("mr-1.5", reviewMutation.isPending && "animate-spin")} />
-                Review compliance
-              </Button>
-            )}
-          </div>
+          <CardTitle className="text-sm font-medium">Add Country / Region</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2">
