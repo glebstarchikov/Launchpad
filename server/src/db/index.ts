@@ -187,3 +187,43 @@ db.run("CREATE INDEX IF NOT EXISTS idx_daily_summaries_user_id ON daily_summarie
 db.run("CREATE INDEX IF NOT EXISTS idx_news_sources_user_id ON news_sources(user_id)");
 db.run("CREATE INDEX IF NOT EXISTS idx_news_items_user_id ON news_items(user_id)");
 db.run("CREATE INDEX IF NOT EXISTS idx_news_items_source_id ON news_items(source_id)");
+
+// One-time cleanup: convert legacy "EU" country entries to scope='region'/scope_code='eu'.
+// Idempotent — re-running does nothing on already-migrated databases.
+try {
+  // Step 1: For projects that have an "EU" entry in project_countries, convert their EU legal items
+  // to the new region-scoped shape.
+  db.run(
+    `UPDATE legal_items
+     SET scope = 'region', scope_code = 'eu', country_code = ''
+     WHERE country_code = 'EU' AND scope = 'country'`
+  );
+
+  // Step 2: Mark migrated EU items where the project has no EU member countries with a status note.
+  // (Hard to express in SQL alone; we do this in JS for clarity.)
+  const orphans = db.query<{ project_id: string }, []>(
+    `SELECT DISTINCT li.project_id FROM legal_items li
+     WHERE li.scope = 'region' AND li.scope_code = 'eu' AND li.status_note IS NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM project_countries pc
+         WHERE pc.project_id = li.project_id
+           AND pc.country_code IN ('AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE')
+       )`
+  ).all();
+  for (const o of orphans) {
+    db.run(
+      `UPDATE legal_items
+       SET status_note = ?
+       WHERE project_id = ? AND scope = 'region' AND scope_code = 'eu' AND status_note IS NULL`,
+      [
+        "EU items present without an EU member country selected. Add a member country or delete these items if no longer relevant.",
+        o.project_id,
+      ]
+    );
+  }
+
+  // Step 3: Remove the bogus "EU" rows from project_countries.
+  db.run(`DELETE FROM project_countries WHERE country_code = 'EU'`);
+} catch (e) {
+  console.warn("[db] EU cleanup migration error (likely benign on fresh DB):", (e as Error).message);
+}
