@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  BookOpen, ChevronRight, ExternalLink, Pencil, Plus, RefreshCw, Trash2, X, Check, Star,
+  BookOpen, ChevronDown, ChevronRight, ExternalLink, Pencil, Plus, RefreshCw, Trash2, X, Check, Star,
   Github, GitCommit, GitPullRequest, CircleDot,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
@@ -23,7 +23,7 @@ import { StageBadge, TypeBadge, TagInput, PingDot, fmt, Empty } from "@/componen
 import FilesView from "@/components/FilesView";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import type { Project, ProjectLink, LaunchChecklistItem, ChecklistCategory, TechDebtItem, TechDebtSeverity, TechDebtCategory, TechDebtEffort, MrrEntry, Goal, ProjectStage, ProjectType, ProjectCountry, LegalItem, Note, GitHubRepoData } from "@/lib/types";
+import type { Project, ProjectLink, LaunchChecklistItem, ChecklistCategory, TechDebtItem, TechDebtSeverity, TechDebtCategory, TechDebtEffort, MrrEntry, Goal, ProjectStage, ProjectType, ProjectCountry, LegalItem, LegalPriority, LegalCategory, LegalResource, Note, GitHubRepoData } from "@/lib/types";
 
 const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
 const TYPES: ProjectType[] = ["for-profit", "open-source"];
@@ -726,10 +726,260 @@ function countryFlag(code: string): string {
   return FLAGS[code] ?? "\u{1F3F3}\u{FE0F}";
 }
 
+const EU_MEMBER_CODES = [
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
+  "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE",
+];
+
+function isEuMemberCountry(code: string): boolean {
+  return EU_MEMBER_CODES.includes(code);
+}
+
+const PRIORITY_BADGE: Record<string, string> = {
+  blocker: "bg-destructive/10 text-destructive border-destructive/30",
+  important: "bg-warning/10 text-warning border-warning/30",
+  recommended: "bg-muted text-muted-foreground border-border",
+};
+
+const CATEGORY_LABEL: Record<string, string> = {
+  privacy: "Privacy",
+  tax: "Tax",
+  terms: "Terms",
+  ip: "IP",
+  accessibility: "Accessibility",
+  data: "Data",
+  corporate: "Corporate",
+};
+
+function LegalScopeCard({
+  title,
+  items,
+  done,
+  total,
+  pct,
+  onToggle,
+  onDelete,
+  onAddCustom,
+}: {
+  title: string;
+  items: LegalItem[];
+  done: number;
+  total: number;
+  pct: number;
+  onToggle: (itemId: string, completed: boolean) => void;
+  onDelete: (itemId: string) => void;
+  onAddCustom: (item: string, priority: LegalPriority, category: LegalCategory) => void;
+}) {
+  const [expanded, setExpanded] = useState<Record<string, { why: boolean; action: boolean }>>({});
+  const [customInput, setCustomInput] = useState("");
+  const [customPriority, setCustomPriority] = useState<LegalPriority>("recommended");
+  const [customCategory, setCustomCategory] = useState<LegalCategory>("terms");
+  const [showCustomForm, setShowCustomForm] = useState(false);
+
+  const toggleExpanded = (id: string, field: "why" | "action") => {
+    setExpanded(prev => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: !prev[id]?.[field] },
+    }));
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          <span className="text-xs text-muted-foreground">{done}/{total}</span>
+        </div>
+        <Progress value={pct} className="h-2 mt-2" />
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {items.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-2">No items match the current filters.</p>
+        )}
+        {items.map((item: LegalItem) => {
+          const priority = item.priority ?? "recommended";
+          const category = item.category ?? "terms";
+          const priorityClass = PRIORITY_BADGE[priority];
+          const isExpanded = expanded[item.id] ?? { why: false, action: false };
+
+          return (
+            <div key={item.id} className={cn(
+              "flex items-start gap-3 p-4 rounded-md border",
+              item.completed === 1 ? "border-border/40 bg-card/50" : "border-border"
+            )}>
+              <Checkbox
+                id={`legal-${item.id}`}
+                checked={item.completed === 1}
+                onCheckedChange={(v) => onToggle(item.id, !!v)}
+                className="mt-1"
+              />
+              <div className="flex-1 min-w-0 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <label
+                    htmlFor={`legal-${item.id}`}
+                    className={cn(
+                      "text-sm leading-snug flex-1 cursor-pointer",
+                      item.completed === 1 && "line-through text-muted-foreground"
+                    )}
+                  >
+                    {item.item}
+                  </label>
+                </div>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className={cn("text-[11px] px-2.5 py-1 rounded border font-medium leading-none", priorityClass)}>
+                    {priority}
+                  </span>
+                  <span className="text-[11px] px-2.5 py-1 rounded border border-border text-muted-foreground leading-none">
+                    {CATEGORY_LABEL[category]}
+                  </span>
+                  {item.status_note && (
+                    <span
+                      title={item.status_note}
+                      className="inline-flex items-center gap-1 text-[11px] text-warning"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-warning" />
+                      needs review
+                    </span>
+                  )}
+                </div>
+                {item.why && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(item.id, "why")}
+                      className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium hover:text-foreground transition-colors flex items-center gap-1"
+                    >
+                      {isExpanded.why ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                      Why this matters
+                    </button>
+                    {isExpanded.why && (
+                      <p className="text-xs text-muted-foreground leading-relaxed mt-1.5">{item.why}</p>
+                    )}
+                  </div>
+                )}
+                {item.action && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(item.id, "action")}
+                      className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium hover:text-foreground transition-colors flex items-center gap-1"
+                    >
+                      {isExpanded.action ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                      Action
+                    </button>
+                    {isExpanded.action && (
+                      <p className="text-xs leading-relaxed mt-1.5">{item.action}</p>
+                    )}
+                  </div>
+                )}
+                {item.resources && item.resources.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(item.resources as LegalResource[]).map((r, i) => (
+                      <a
+                        key={i}
+                        href={r.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground transition-colors inline-flex items-center gap-1"
+                      >
+                        {r.label}
+                        <ExternalLink size={9} />
+                      </a>
+                    ))}
+                  </div>
+                )}
+                {item.status_note && (
+                  <p className="text-[11px] text-warning bg-warning/5 border border-warning/20 rounded p-2 leading-relaxed">
+                    {item.status_note}
+                  </p>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                onClick={() => onDelete(item.id)}
+              >
+                <Trash2 size={13} />
+              </Button>
+            </div>
+          );
+        })}
+
+        {/* Add custom item form */}
+        {showCustomForm ? (
+          <div className="space-y-2 p-3 border border-dashed border-border rounded-md">
+            <Input
+              value={customInput}
+              onChange={e => setCustomInput(e.target.value)}
+              placeholder="Custom legal item..."
+              className="text-sm h-9"
+              autoFocus
+            />
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={customPriority} onValueChange={(v) => setCustomPriority(v as LegalPriority)}>
+                <SelectTrigger className="h-8 text-xs flex-1 min-w-[120px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="blocker">Blocker</SelectItem>
+                  <SelectItem value="important">Important</SelectItem>
+                  <SelectItem value="recommended">Recommended</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={customCategory} onValueChange={(v) => setCustomCategory(v as LegalCategory)}>
+                <SelectTrigger className="h-8 text-xs flex-1 min-w-[120px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="privacy">Privacy</SelectItem>
+                  <SelectItem value="tax">Tax</SelectItem>
+                  <SelectItem value="terms">Terms</SelectItem>
+                  <SelectItem value="ip">IP</SelectItem>
+                  <SelectItem value="accessibility">Accessibility</SelectItem>
+                  <SelectItem value="data">Data</SelectItem>
+                  <SelectItem value="corporate">Corporate</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                className="h-8 text-xs"
+                disabled={!customInput.trim()}
+                onClick={() => {
+                  onAddCustom(customInput.trim(), customPriority, customCategory);
+                  setCustomInput("");
+                  setShowCustomForm(false);
+                }}
+              >
+                Add
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 text-xs"
+                onClick={() => { setShowCustomForm(false); setCustomInput(""); }}
+              >
+                <X size={13} />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowCustomForm(true)}
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors w-full pt-1"
+          >
+            <Plus size={11} />
+            Add custom item
+          </button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnType<typeof useQueryClient> }) {
   const [selectedCountry, setSelectedCountry] = useState("");
   const [customItemInputs, setCustomItemInputs] = useState<Record<string, string>>({});
   const [showCustomForm, setShowCustomForm] = useState<Record<string, boolean>>({});
+  const [filterPriority, setFilterPriority] = useState<"all" | "blocker" | "important" | "recommended">("all");
+  const [filterCategory, setFilterCategory] = useState<"all" | "privacy" | "tax" | "terms" | "ip" | "accessibility" | "data" | "corporate">("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "open" | "done" | "needs-review">("all");
 
   const { data: countries = [] } = useQuery({
     queryKey: ["countries", id],
@@ -761,17 +1011,21 @@ function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnTyp
 
   const toggleLegal = useMutation({
     mutationFn: ({ itemId, completed }: { itemId: string; completed: boolean }) =>
-      api.projects.legal.update(id, itemId, completed),
+      api.projects.legal.update(id, itemId, { completed }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["legal", id] }),
   });
 
   const addLegalItem = useMutation({
-    mutationFn: (data: { country_code: string; item: string }) =>
-      api.projects.legal.create(id, data),
-    onSuccess: (_data, variables) => {
+    mutationFn: (data: {
+      country_code: string;
+      item: string;
+      priority?: LegalPriority;
+      category?: LegalCategory;
+      scope?: "country" | "region";
+      scope_code?: string | null;
+    }) => api.projects.legal.create(id, data),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["legal", id] });
-      setCustomItemInputs(prev => ({ ...prev, [variables.country_code]: "" }));
-      setShowCustomForm(prev => ({ ...prev, [variables.country_code]: false }));
     },
   });
 
@@ -788,12 +1042,27 @@ function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnTyp
     if (country) addCountry.mutate({ country_code: country.code, country_name: country.name });
   };
 
-  // Group legal items by country_code
-  const itemsByCountry: Record<string, LegalItem[]> = {};
-  for (const item of legalItems) {
-    if (!itemsByCountry[item.country_code]) itemsByCountry[item.country_code] = [];
-    itemsByCountry[item.country_code].push(item);
+  // Apply filters
+  const passesFilter = (item: LegalItem): boolean => {
+    if (filterPriority !== "all" && (item.priority ?? "recommended") !== filterPriority) return false;
+    if (filterCategory !== "all" && (item.category ?? "terms") !== filterCategory) return false;
+    if (filterStatus === "open" && item.completed === 1) return false;
+    if (filterStatus === "done" && item.completed === 0) return false;
+    if (filterStatus === "needs-review" && !item.status_note) return false;
+    return true;
+  };
+  const filteredItems = legalItems.filter(passesFilter);
+
+  // Group by scope: country items by country_code, region items under their scope_code
+  const itemsByScope: Record<string, LegalItem[]> = {};
+  for (const item of filteredItems) {
+    const key = item.scope === "region" ? `region:${item.scope_code ?? "unknown"}` : item.country_code;
+    if (!itemsByScope[key]) itemsByScope[key] = [];
+    itemsByScope[key].push(item);
   }
+
+  // Show EU section if any EU member country is active
+  const hasEuMember = countries.some((c: ProjectCountry) => isEuMemberCountry(c.country_code));
 
   return (
     <div className="space-y-4">
@@ -828,6 +1097,47 @@ function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnTyp
         </CardContent>
       </Card>
 
+      {/* Filter bar */}
+      {legalItems.length > 0 && (
+        <Card>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={filterPriority} onValueChange={(v) => setFilterPriority(v as typeof filterPriority)}>
+                <SelectTrigger className="h-8 text-xs w-[140px]"><SelectValue placeholder="Priority" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All priorities</SelectItem>
+                  <SelectItem value="blocker">Blocker</SelectItem>
+                  <SelectItem value="important">Important</SelectItem>
+                  <SelectItem value="recommended">Recommended</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v as typeof filterCategory)}>
+                <SelectTrigger className="h-8 text-xs w-[150px]"><SelectValue placeholder="Category" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  <SelectItem value="privacy">Privacy</SelectItem>
+                  <SelectItem value="tax">Tax</SelectItem>
+                  <SelectItem value="terms">Terms</SelectItem>
+                  <SelectItem value="ip">IP</SelectItem>
+                  <SelectItem value="accessibility">Accessibility</SelectItem>
+                  <SelectItem value="data">Data</SelectItem>
+                  <SelectItem value="corporate">Corporate</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
+                <SelectTrigger className="h-8 text-xs w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="open">Open</SelectItem>
+                  <SelectItem value="done">Done</SelectItem>
+                  <SelectItem value="needs-review">Needs review</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Active country chips */}
       {countries.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -845,105 +1155,50 @@ function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnTyp
         </div>
       )}
 
-      {/* Per-country legal cards */}
+      {/* Per-scope legal cards */}
       {countries.map((c: ProjectCountry) => {
-        const items = itemsByCountry[c.country_code] ?? [];
-        const done = items.filter(i => i.completed === 1).length;
-        const total = items.length;
+        const items = itemsByScope[c.country_code] ?? [];
+        const allItemsForCountry = legalItems.filter(li => li.scope === "country" && li.country_code === c.country_code);
+        const done = allItemsForCountry.filter(i => i.completed === 1).length;
+        const total = allItemsForCountry.length;
         const pct = total > 0 ? (done / total) * 100 : 0;
 
         return (
-          <Card key={c.id}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium">
-                  {countryFlag(c.country_code)} {c.country_name}
-                </CardTitle>
-                <span className="text-xs text-muted-foreground">{done}/{total}</span>
-              </div>
-              <Progress value={pct} className="h-2 mt-2" />
-            </CardHeader>
-            <CardContent className="space-y-1.5">
-              {items.map((item: LegalItem) => (
-                <div key={item.id} className="flex items-center gap-2 group">
-                  <Checkbox
-                    id={`legal-${item.id}`}
-                    checked={item.completed === 1}
-                    onCheckedChange={(v) => toggleLegal.mutate({ itemId: item.id, completed: !!v })}
-                  />
-                  <label
-                    htmlFor={`legal-${item.id}`}
-                    className={cn(
-                      "text-sm flex-1 cursor-pointer",
-                      item.completed === 1 && "line-through text-muted-foreground"
-                    )}
-                  >
-                    {item.item}
-                  </label>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:text-destructive"
-                    onClick={() => deleteLegal.mutate(item.id)}
-                  >
-                    <Trash2 size={11} />
-                  </Button>
-                </div>
-              ))}
-
-              {/* Add custom item */}
-              {showCustomForm[c.country_code] ? (
-                <div className="flex gap-2 pt-2">
-                  <Input
-                    value={customItemInputs[c.country_code] ?? ""}
-                    onChange={e => setCustomItemInputs(prev => ({ ...prev, [c.country_code]: e.target.value }))}
-                    onKeyDown={e => {
-                      if (e.key === "Enter" && (customItemInputs[c.country_code] ?? "").trim()) {
-                        addLegalItem.mutate({ country_code: c.country_code, item: customItemInputs[c.country_code].trim() });
-                      }
-                      if (e.key === "Escape") {
-                        setShowCustomForm(prev => ({ ...prev, [c.country_code]: false }));
-                        setCustomItemInputs(prev => ({ ...prev, [c.country_code]: "" }));
-                      }
-                    }}
-                    placeholder="Custom legal item..."
-                    className="text-sm"
-                    autoFocus
-                  />
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={!(customItemInputs[c.country_code] ?? "").trim() || addLegalItem.isPending}
-                    onClick={() => addLegalItem.mutate({ country_code: c.country_code, item: customItemInputs[c.country_code].trim() })}
-                  >
-                    Add
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setShowCustomForm(prev => ({ ...prev, [c.country_code]: false }));
-                      setCustomItemInputs(prev => ({ ...prev, [c.country_code]: "" }));
-                    }}
-                  >
-                    <X size={13} />
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-muted-foreground mt-1 gap-1"
-                  onClick={() => setShowCustomForm(prev => ({ ...prev, [c.country_code]: true }))}
-                >
-                  <Plus size={12} />
-                  Add custom item
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+          <LegalScopeCard
+            key={c.id}
+            title={`${countryFlag(c.country_code)} ${c.country_name}`}
+            items={items}
+            done={done}
+            total={total}
+            pct={pct}
+            onToggle={(itemId, completed) => toggleLegal.mutate({ itemId, completed })}
+            onDelete={(itemId) => deleteLegal.mutate(itemId)}
+            onAddCustom={(item, priority, category) => addLegalItem.mutate({ country_code: c.country_code, item, priority, category })}
+          />
         );
       })}
+
+      {/* EU region section (auto-attached when any EU member is present) */}
+      {hasEuMember && (() => {
+        const items = itemsByScope["region:eu"] ?? [];
+        const allEuItems = legalItems.filter(li => li.scope === "region" && li.scope_code === "eu");
+        const done = allEuItems.filter(i => i.completed === 1).length;
+        const total = allEuItems.length;
+        const pct = total > 0 ? (done / total) * 100 : 0;
+        return (
+          <LegalScopeCard
+            key="eu-region"
+            title={`${countryFlag("EU")} European Union`}
+            items={items}
+            done={done}
+            total={total}
+            pct={pct}
+            onToggle={(itemId, completed) => toggleLegal.mutate({ itemId, completed })}
+            onDelete={(itemId) => deleteLegal.mutate(itemId)}
+            onAddCustom={(item, priority, category) => addLegalItem.mutate({ country_code: "", item, priority, category, scope: "region", scope_code: "eu" })}
+          />
+        );
+      })()}
 
       {countries.length === 0 && (
         <div className="text-sm text-muted-foreground text-center py-8">
