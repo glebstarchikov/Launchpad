@@ -50,11 +50,16 @@ export interface LegalItem {
   created_at: number;
 }
 
+export type ChecklistCategory = "validation" | "build" | "infra" | "legal" | "marketing" | "launch" | "growth";
+
 export interface LaunchChecklistItem {
   id: string;
   project_id: string;
   item: string;
   completed: 0 | 1;
+  category: ChecklistCategory | null;
+  min_stage: ProjectStage | null;
+  sort_order: number;
   created_at: number;
 }
 
