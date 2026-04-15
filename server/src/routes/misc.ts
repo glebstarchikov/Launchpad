@@ -490,6 +490,74 @@ router.get("/dashboard/activity", async (c) => {
   return c.json({ events: events.slice(0, 50) });
 });
 
+router.get("/dashboard/scoreboard", (c) => {
+  const userId = c.get("userId");
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+
+  // MRR current: sum of latest mrr_history entry per project
+  const mrrCurrent = db.query<{ total: number | null }, [string]>(
+    `SELECT COALESCE(SUM(m.mrr), 0) as total
+     FROM mrr_history m
+     INNER JOIN (SELECT project_id, MAX(recorded_at) as max_at FROM mrr_history GROUP BY project_id) latest
+       ON m.project_id = latest.project_id AND m.recorded_at = latest.max_at
+     INNER JOIN projects p ON m.project_id = p.id
+     WHERE p.user_id = ?`
+  ).get(userId)?.total ?? 0;
+
+  // MRR previous: sum of latest mrr_history entry per project as-of month start
+  const mrrPrevious = db.query<{ total: number | null }, [number, string]>(
+    `SELECT COALESCE(SUM(m.mrr), 0) as total
+     FROM mrr_history m
+     INNER JOIN (SELECT project_id, MAX(recorded_at) as max_at FROM mrr_history WHERE recorded_at < ? GROUP BY project_id) latest
+       ON m.project_id = latest.project_id AND m.recorded_at = latest.max_at
+     INNER JOIN projects p ON m.project_id = p.id
+     WHERE p.user_id = ?`
+  ).get(monthStart, userId)?.total ?? 0;
+
+  const mrrDelta = mrrCurrent - mrrPrevious;
+  const mrrDeltaPct = mrrPrevious > 0 ? Math.round((mrrDelta / mrrPrevious) * 100) : null;
+
+  // Projects shipped this month: live stage + updated_at this month
+  const projectsShippedCurrent = db.query<{ n: number }, [string, number]>(
+    "SELECT COUNT(*) as n FROM projects WHERE user_id = ? AND stage = 'live' AND updated_at >= ?"
+  ).get(userId, monthStart)?.n ?? 0;
+
+  const projectsShippedPrevious = db.query<{ n: number }, [string, number, number]>(
+    "SELECT COUNT(*) as n FROM projects WHERE user_id = ? AND stage = 'live' AND updated_at >= ? AND updated_at < ?"
+  ).get(userId, prevMonthStart, monthStart)?.n ?? 0;
+
+  const projectsShippedDelta = projectsShippedCurrent - projectsShippedPrevious;
+
+  // Legal complete ratio (current only)
+  const legalStats = db.query<{ total: number; done: number }, [string]>(
+    `SELECT COUNT(*) as total, SUM(CASE WHEN li.completed = 1 THEN 1 ELSE 0 END) as done
+     FROM legal_items li INNER JOIN projects p ON li.project_id = p.id
+     WHERE p.user_id = ?`
+  ).get(userId);
+  const legalCompletePct = legalStats && legalStats.total > 0
+    ? Math.round((legalStats.done / legalStats.total) * 100)
+    : 0;
+
+  // Checklist complete ratio (current only)
+  const checklistStats = db.query<{ total: number; done: number }, [string]>(
+    `SELECT COUNT(*) as total, SUM(CASE WHEN lc.completed = 1 THEN 1 ELSE 0 END) as done
+     FROM launch_checklist lc INNER JOIN projects p ON lc.project_id = p.id
+     WHERE p.user_id = ?`
+  ).get(userId);
+  const checklistCompletePct = checklistStats && checklistStats.total > 0
+    ? Math.round((checklistStats.done / checklistStats.total) * 100)
+    : 0;
+
+  return c.json({
+    mrr: { current: mrrCurrent, previous: mrrPrevious, delta: mrrDelta, delta_pct: mrrDeltaPct },
+    projectsShipped: { current: projectsShippedCurrent, previous: projectsShippedPrevious, delta: projectsShippedDelta },
+    legalComplete: { current_pct: legalCompletePct },
+    checklistComplete: { current_pct: checklistCompletePct },
+  });
+});
+
 router.post("/ping", async (c) => {
   const { url } = await c.req.json();
   if (!url) return c.json({ error: "url required" }, 400);
