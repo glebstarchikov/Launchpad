@@ -19,11 +19,14 @@ export type ChecklistStage =
   | "growing"
   | "sunset";
 
+export type ChecklistPriority = "blocker" | "important" | "recommended";
+
 export interface ChecklistItem {
   item: string;
   category: ChecklistCategory;
   min_stage: ChecklistStage;
   sort_order: number;
+  priority?: ChecklistPriority;
 }
 
 // Items applicable to both for-profit and open-source projects.
@@ -40,15 +43,15 @@ export const CHECKLIST_UNIVERSAL: ChecklistItem[] = [
   { item: "Define MVP scope (single paragraph)", category: "build", min_stage: "idea", sort_order: 200 },
   { item: "Create git repository", category: "build", min_stage: "idea", sort_order: 210 },
   { item: "Document local dev environment setup", category: "build", min_stage: "idea", sort_order: 220 },
-  { item: "Build core feature #1 (the one thing)", category: "build", min_stage: "idea", sort_order: 230 },
+  { item: "Build core feature #1 (the one thing)", category: "build", min_stage: "idea", sort_order: 230, priority: "blocker" },
   { item: "Write basic README", category: "build", min_stage: "idea", sort_order: 240 },
   { item: "Set up version control branching strategy", category: "build", min_stage: "idea", sort_order: 250 },
   { item: "Document tech stack decisions", category: "build", min_stage: "idea", sort_order: 260 },
 
   // Technical Infrastructure
   { item: "Set up CI/CD pipeline", category: "infra", min_stage: "building", sort_order: 300 },
-  { item: "Configure custom domain", category: "infra", min_stage: "building", sort_order: 310 },
-  { item: "Install SSL certificate", category: "infra", min_stage: "building", sort_order: 320 },
+  { item: "Configure custom domain", category: "infra", min_stage: "building", sort_order: 310, priority: "blocker" },
+  { item: "Install SSL certificate", category: "infra", min_stage: "building", sort_order: 320, priority: "blocker" },
   { item: "Set up uptime monitoring", category: "infra", min_stage: "building", sort_order: 330 },
   { item: "Set up error tracking (Sentry or equivalent)", category: "infra", min_stage: "building", sort_order: 340 },
   { item: "Set up analytics (Plausible / PostHog / etc.)", category: "infra", min_stage: "building", sort_order: 350 },
@@ -107,8 +110,8 @@ export const CHECKLIST_FOR_PROFIT: ChecklistItem[] = [
   { item: "Set up secrets management", category: "infra", min_stage: "building", sort_order: 399 },
 
   // Legal
-  { item: "Draft Terms of Service", category: "legal", min_stage: "building", sort_order: 410 },
-  { item: "Draft Privacy Policy", category: "legal", min_stage: "building", sort_order: 420 },
+  { item: "Draft Terms of Service", category: "legal", min_stage: "building", sort_order: 410, priority: "blocker" },
+  { item: "Draft Privacy Policy", category: "legal", min_stage: "building", sort_order: 420, priority: "blocker" },
   { item: "Register business entity", category: "legal", min_stage: "building", sort_order: 430 },
   { item: "Set up business bank account", category: "legal", min_stage: "building", sort_order: 440 },
   { item: "Tax registration (as required)", category: "legal", min_stage: "building", sort_order: 450 },
