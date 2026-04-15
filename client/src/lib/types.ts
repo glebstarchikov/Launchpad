@@ -88,6 +88,7 @@ export interface LegalReviewDiff {
 }
 
 export type ChecklistCategory = "validation" | "build" | "infra" | "legal" | "marketing" | "launch" | "growth";
+export type ChecklistPriority = "blocker" | "important" | "recommended";
 
 export interface LaunchChecklistItem {
   id: string;
@@ -97,6 +98,7 @@ export interface LaunchChecklistItem {
   category: ChecklistCategory | null;
   min_stage: ProjectStage | null;
   sort_order: number;
+  priority: ChecklistPriority | null;
   created_at: number;
 }
 

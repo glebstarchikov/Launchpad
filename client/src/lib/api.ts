@@ -1,4 +1,4 @@
-import type { User, Project, ProjectLink, LaunchChecklistItem, ChecklistCategory, TechDebtItem, TechDebtSeverity, TechDebtCategory, TechDebtEffort, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, LegalPriority, LegalCategory, LegalResource, LegalReviewDiff, LegalReviewMissingItem, Note, Idea, FileRecord, DailySummary, LLMHealth, NewsItem, NewsSource, WhisperHealth, VoiceIdeaResult, GitHubRepoData, GitHubActivity } from "./types";
+import type { User, Project, ProjectLink, LaunchChecklistItem, ChecklistCategory, ChecklistPriority, TechDebtItem, TechDebtSeverity, TechDebtCategory, TechDebtEffort, MrrEntry, Goal, ProjectStage, ProjectType, DashboardData, ProjectCountry, LegalItem, LegalPriority, LegalCategory, LegalResource, LegalReviewDiff, LegalReviewMissingItem, Note, Idea, FileRecord, DailySummary, LLMHealth, NewsItem, NewsSource, WhisperHealth, VoiceIdeaResult, GitHubRepoData, GitHubActivity } from "./types";
 
 const BASE = "/api";
 
@@ -86,9 +86,9 @@ export const api = {
     },
     checklist: {
       list: (id: string) => req<LaunchChecklistItem[]>(`/projects/${id}/launch-checklist`),
-      create: (id: string, data: { item: string; category?: ChecklistCategory; min_stage?: ProjectStage }) =>
+      create: (id: string, data: { item: string; category?: ChecklistCategory; min_stage?: ProjectStage; priority?: ChecklistPriority }) =>
         req<LaunchChecklistItem>(`/projects/${id}/launch-checklist`, { method: "POST", body: JSON.stringify(data) }),
-      update: (id: string, itemId: string, data: { completed?: boolean; item?: string; category?: ChecklistCategory; min_stage?: ProjectStage }) =>
+      update: (id: string, itemId: string, data: { completed?: boolean; item?: string; category?: ChecklistCategory; min_stage?: ProjectStage; priority?: ChecklistPriority }) =>
         req<{ ok: true }>(`/projects/${id}/launch-checklist/${itemId}`, { method: "PUT", body: JSON.stringify(data) }),
       delete: (id: string, itemId: string) =>
         req<{ ok: true }>(`/projects/${id}/launch-checklist/${itemId}`, { method: "DELETE" }),
