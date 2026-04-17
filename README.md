@@ -59,6 +59,21 @@ Skip the build step by using the pre-built image from GitHub Container Registry.
 image: ghcr.io/glebstarchikov/launchpad:latest
 ```
 
+## Self-hosting with Coolify
+
+1. New Resource → Application → select your GitHub repo → branch `main`
+2. **General tab:**
+   - Build Pack: `Docker Image`
+   - Docker Image: `ghcr.io/glebstarchikov/launchpad:latest`
+   - Ports Exposes: `3001`
+3. **Environment Variables tab** → click **Developer view** → paste the contents of `.env.example` and fill in your values
+4. **Persistent Storage tab** → add two volumes:
+   - Destination: `/data` (SQLite database)
+   - Destination: `/uploads` (file attachments)
+5. Deploy — then open the URL and register your account immediately
+
+> The pre-built image (`ghcr.io/glebstarchikov/launchpad:latest`) is updated automatically on every push to `main` via GitHub Actions.
+
 ## Local development
 
 **Requirements:** [Bun](https://bun.sh) ≥ 1.0
