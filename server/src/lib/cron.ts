@@ -3,6 +3,8 @@ import { generateText, isLLMAvailable } from "./llm.ts";
 import { sendMessage, isTelegramConfigured } from "./telegram.ts";
 import { fetchNewsForUser } from "../routes/news.ts";
 
+const BRIEF_HOUR = Number(process.env.TELEGRAM_BRIEF_HOUR ?? "9");
+
 function collectYesterdayActivity(userId: string, dateStr: string) {
   const start = new Date(`${dateStr}T00:00:00`).getTime();
   const end = start + 86400000;
@@ -107,7 +109,8 @@ export function startCron() {
     return;
   }
 
-  console.log("Morning cron scheduled (9:00 AM daily)");
+  const hourStr = String(BRIEF_HOUR).padStart(2, "0");
+  console.log(`Morning cron scheduled (${hourStr}:00 daily)`);
 
   let lastRun = "";
   setInterval(() => {
@@ -115,7 +118,7 @@ export function startCron() {
     const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
     const key = `${now.toISOString().split("T")[0]}-${time}`;
 
-    if (time === "09:00" && lastRun !== key) {
+    if (time === `${hourStr}:00` && lastRun !== key) {
       lastRun = key;
       sendMorningBriefing().catch(console.error);
     }
