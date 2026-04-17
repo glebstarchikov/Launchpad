@@ -2,6 +2,10 @@ node_modules
 .git
 .env
 *.db
+*.db-shm
+*.db-wal
 uploads/
 .claude/
 docs/
+.playwright-mcp/
+.superpowers/
