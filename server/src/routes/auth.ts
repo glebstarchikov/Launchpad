@@ -11,6 +11,9 @@ const isProduction = process.env.NODE_ENV === "production";
 const securePart = isProduction ? "; Secure" : "";
 
 router.post("/register", async (c) => {
+  const userCount = db.query<{ count: number }, []>("SELECT COUNT(*) as count FROM users").get();
+  if (userCount && userCount.count > 0) return c.json({ error: "Registration is closed" }, 403);
+
   const { name, email, password } = await c.req.json();
   if (!name || !email || !password) return c.json({ error: "name, email, password required" }, 400);
 
