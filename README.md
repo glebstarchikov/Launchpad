@@ -138,6 +138,16 @@ Once configured:
 - Send any message to the bot → saved as an idea in Launchpad
 - Every morning at `TELEGRAM_BRIEF_HOUR` (default: 9 AM server time) → briefing with yesterday's summary + top news signals
 
+## Resetting your password
+
+```bash
+# Docker
+docker exec -it <container_name> bun scripts/reset-password.ts you@email.com newpassword
+
+# Local dev
+bun scripts/reset-password.ts you@email.com newpassword
+```
+
 ## Upgrading
 
 Schema migrations run automatically on startup. Pull and restart:
