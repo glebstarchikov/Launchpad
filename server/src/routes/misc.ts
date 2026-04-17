@@ -414,26 +414,6 @@ router.get("/dashboard/activity", async (c) => {
     }
   });
 
-  // news (grouped into one event)
-  run("news", () => {
-    const row = db.query<{ cnt: number; max_created: number | null }, [string, number]>(
-      `SELECT COUNT(*) as cnt, MAX(created_at) as max_created
-       FROM news_items WHERE user_id = ? AND relevance_score > 0.5 AND created_at >= ?`
-    ).get(userId, since);
-    if (row && row.cnt > 0) {
-      events.push({
-        id: `news-${row.max_created}`,
-        kind: "news",
-        icon: "📰",
-        label: `${row.cnt} relevant news items`,
-        project_id: null,
-        project_name: null,
-        timestamp: row.max_created ?? now,
-        deep_link: "/news",
-      });
-    }
-  });
-
   // tech-debt-added (grouped by project)
   run("tech-debt-added", () => {
     const rows = db.query<{ project_id: string; project_name: string; cnt: number; max_created: number }, [string, number]>(

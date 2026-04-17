@@ -7,3 +7,6 @@ client/dist/*.css
 uploads/
 .env
 .vscode/
+.playwright-mcp/
+.superpowers/
+docs/superpowers/

@@ -104,7 +104,7 @@ export default function Ideas() {
               onRecorded={(blob) => voiceIdea.mutate(blob)}
               isProcessing={voiceIdea.isPending}
             />
-            <Button size="sm" onClick={() => { setSelected(null); setComposing(true); }}>
+            <Button size="sm" className="h-8" onClick={() => { setSelected(null); setComposing(true); }}>
               New
             </Button>
           </div>

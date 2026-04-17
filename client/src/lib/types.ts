@@ -300,7 +300,7 @@ export interface DashboardActionItemsResponse {
 
 export interface ActivityEvent {
   id: string;
-  kind: "commit" | "mrr-update" | "new-idea" | "news" | "tech-debt-added";
+  kind: "commit" | "mrr-update" | "new-idea" | "tech-debt-added";
   icon: string;
   label: string;
   project_id: string | null;

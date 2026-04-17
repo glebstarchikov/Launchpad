@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight, Sparkles, Loader2, Newspaper, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight, Newspaper, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { StageBadge, Empty, fmt, STAGE_META } from "@/components/app-ui";
@@ -350,36 +350,6 @@ export default function Dashboard() {
     queryFn: api.dashboard.get,
   });
 
-  const today = new Date().toISOString().split("T")[0];
-  const { data: todaySummary } = useQuery({
-    queryKey: ["daily-summary", today],
-    queryFn: () => api.dailySummary.get(today),
-    retry: false,
-  });
-
-  const { data: llmHealth } = useQuery({
-    queryKey: ["health", "llm"],
-    queryFn: api.health.llm,
-    staleTime: 60_000,
-  });
-
-  const generateSummary = useMutation({
-    mutationFn: () => api.dailySummary.generate(today),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["daily-summary", today] });
-    },
-  });
-
-  const regenerateSummary = useMutation({
-    mutationFn: async () => {
-      await api.dailySummary.delete(today);
-      return api.dailySummary.generate(today);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["daily-summary", today] });
-    },
-  });
-
   const { data: newsItems } = useQuery({
     queryKey: ["news"],
     queryFn: () => api.news.list(),
@@ -395,14 +365,14 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="px-8 py-6">
-        <div className="h-7 w-32 bg-card rounded border border-border animate-pulse mb-2" />
-        <div className="h-4 w-48 bg-card rounded border border-border animate-pulse opacity-60" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+      <div className="px-8 py-6 space-y-6">
+        <div className="h-7 w-32 bg-card rounded border border-border animate-pulse" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-[100px] bg-card rounded-lg border border-border animate-pulse" />
+            <div key={i} className="h-[88px] bg-card rounded-lg border border-border animate-pulse" />
           ))}
         </div>
+        <div className="h-[170px] bg-card rounded-lg border border-border animate-pulse" />
       </div>
     );
   }
@@ -427,48 +397,69 @@ export default function Dashboard() {
 
   return (
     <div className="px-8 py-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-lg font-semibold">Dashboard</h1>
-        <div className="flex items-center gap-4 text-xs font-mono tabular-nums">
-          <button
-            onClick={() => navigate("/projects")}
-            className={cn(
-              "hover:text-foreground transition-colors",
-              mrr > 0 ? "text-success" : "text-muted-foreground"
-            )}
-          >
-            MRR {fmt(mrr)}
-          </button>
-          <button
-            onClick={() => navigate("/projects")}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Projects {projectCount}
-          </button>
-          <button
-            onClick={() => navigate("/ideas")}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Ideas {ideaCount}
-          </button>
-          <button
-            onClick={() => navigate("/projects")}
-            className={cn(
-              "transition-colors hover:text-foreground",
-              legalPending > 0 ? "text-destructive" : "text-muted-foreground"
-            )}
-          >
-            Legal {legalPending}{legalPending > 0 && " ⚠"}
-          </button>
-        </div>
+      <h1 className="text-lg font-semibold">Dashboard</h1>
+
+      {/* Stat cards — primary anchors */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card
+          className="cursor-pointer hover:bg-secondary/30 transition-colors"
+          onClick={() => navigate("/projects")}
+        >
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <TrendingUp size={14} />
+              <span className="text-xs font-medium">Total MRR</span>
+            </div>
+            <p className={cn("text-2xl font-bold font-mono tabular-nums", mrr > 0 ? "text-success" : "")}>
+              {fmt(mrr)}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="cursor-pointer hover:bg-secondary/30 transition-colors"
+          onClick={() => navigate("/projects")}
+        >
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <FolderKanban size={14} />
+              <span className="text-xs font-medium">Projects</span>
+            </div>
+            <p className="text-2xl font-bold font-mono tabular-nums">{projectCount}</p>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="cursor-pointer hover:bg-secondary/30 transition-colors"
+          onClick={() => navigate("/ideas")}
+        >
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <Lightbulb size={14} />
+              <span className="text-xs font-medium">Idea Inbox</span>
+            </div>
+            <p className="text-2xl font-bold font-mono tabular-nums">{ideaCount}</p>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="cursor-pointer hover:bg-secondary/30 transition-colors"
+          onClick={() => navigate("/projects")}
+        >
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <AlertTriangle size={14} className={legalPending > 0 ? "text-destructive" : ""} />
+              <span className="text-xs font-medium">Legal Pending</span>
+            </div>
+            <p className={cn("text-2xl font-bold font-mono tabular-nums", legalPending > 0 ? "text-destructive" : "")}>
+              {legalPending}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      <ActionItemsCard />
-
-      <ActivityFeedCard />
-
+      {/* Pipeline + Recent Projects */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Pipeline */}
         <Card className="lg:col-span-2 h-[170px] overflow-hidden">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
@@ -496,9 +487,7 @@ export default function Dashboard() {
               {STAGES.filter((s) => (countByStage[s] ?? 0) > 0).map((stage) => (
                 <div key={stage} className="flex items-center gap-2">
                   <div className={cn("w-2 h-2 rounded-full shrink-0", STAGE_META[stage].className)} />
-                  <span className="text-[12px] text-muted-foreground">
-                    {STAGE_META[stage].label}
-                  </span>
+                  <span className="text-[12px] text-muted-foreground">{STAGE_META[stage].label}</span>
                   <span className="text-[12px] text-foreground font-medium font-mono tabular-nums">
                     {countByStage[stage]}
                   </span>
@@ -508,7 +497,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Projects — fixed height, scrollable */}
         <Card className="h-[170px] overflow-hidden flex flex-col">
           <CardHeader className="pb-3 shrink-0">
             <div className="flex items-center justify-between">
@@ -529,10 +517,7 @@ export default function Dashboard() {
                   >
                     <span className="text-[13px] font-medium flex-1 truncate">{project.name}</span>
                     <StageBadge stage={project.stage} />
-                    <ArrowUpRight
-                      size={12}
-                      className="text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 transition-opacity"
-                    />
+                    <ArrowUpRight size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 transition-opacity" />
                   </button>
                 ))}
               </div>
@@ -541,7 +526,15 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Idea Inbox — fixed height, expandable */}
+      {/* Action Items + Scoreboard side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <ActionItemsCard />
+        </div>
+        <ScoreboardCard />
+      </div>
+
+      {/* Idea Inbox */}
       <ExpandableCard
         title="Idea Inbox"
         count={ideaCount}
@@ -568,106 +561,47 @@ export default function Dashboard() {
         const signals = todaysSignals.length > 0 ? todaysSignals.slice(0, 5) : relevant.slice(0, 5);
         if (signals.length === 0) return null;
         return (
-        <ExpandableCard
-          title="Today's Signals"
-          icon={<Newspaper size={14} className="text-info" />}
-          count={`${signals.filter(i => !i.read).length} unread`}
-          isEmpty={false}
-          action={
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => refreshNews.mutate()}
-              disabled={refreshNews.isPending}
-              className="h-6 text-[11px] px-2"
-            >
-              <RefreshCw size={10} className={cn("mr-1", refreshNews.isPending && "animate-spin")} />
-              Refresh
-            </Button>
-          }
-        >
-          <div className="divide-y divide-border">
-            {signals.map((item) => (
-              <div key={item.id} className="py-2.5 first:pt-0 last:pb-0">
-                <a
-                  href={item.url ?? "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[13px] font-medium hover:text-info transition-colors line-clamp-1"
-                >
-                  {item.title}
-                </a>
-                {item.summary && (
-                  <Markdown content={item.summary} className="text-[12px] text-muted-foreground mt-0.5" />
-                )}
-              </div>
-            ))}
-          </div>
-        </ExpandableCard>
-        );
-      })()}
-
-      <ScoreboardCard />
-
-      {/* Daily Summary — expandable */}
-      <ExpandableCard
-        title="Daily Summary"
-        icon={<Sparkles size={14} className="text-purple" />}
-        isEmpty={!todaySummary && !generateSummary.isError && llmHealth?.available !== false}
-        emptyContent={
-          <Empty
-            icon={<Sparkles size={20} />}
-            title="No summary yet"
-            sub={llmHealth?.available ? "Click Generate to create today's digest." : "Checking LLM availability..."}
-          />
-        }
-        action={
-          llmHealth?.available ? (
-            todaySummary ? (
+          <ExpandableCard
+            title="Today's Signals"
+            icon={<Newspaper size={14} className="text-info" />}
+            count={`${signals.filter(i => !i.read).length} unread`}
+            isEmpty={false}
+            action={
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => regenerateSummary.mutate()}
-                disabled={regenerateSummary.isPending}
+                onClick={() => refreshNews.mutate()}
+                disabled={refreshNews.isPending}
                 className="h-6 text-[11px] px-2"
               >
-                {regenerateSummary.isPending ? (
-                  <><Loader2 size={10} className="animate-spin mr-1" /> Regenerating...</>
-                ) : (
-                  <><RefreshCw size={10} className="mr-1" /> Regenerate</>
-                )}
+                <RefreshCw size={10} className={cn("mr-1", refreshNews.isPending && "animate-spin")} />
+                Refresh
               </Button>
-            ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => generateSummary.mutate()}
-                disabled={generateSummary.isPending}
-                className="h-7 text-xs"
-              >
-                {generateSummary.isPending ? (
-                  <><Loader2 size={12} className="animate-spin mr-1" /> Generating...</>
-                ) : (
-                  "Generate"
-                )}
-              </Button>
-            )
-          ) : undefined
-        }
-      >
-        {todaySummary ? (
-          <Markdown content={todaySummary.summary} className="text-muted-foreground" />
-        ) : llmHealth?.available === false ? (
-          <div className="text-[12px] text-muted-foreground">
-            <p>LLM not available. Start Ollama to enable daily summaries.</p>
-            <p className="text-[11px] mt-1 font-mono text-muted-foreground/60">ollama serve && ollama pull llama3.1</p>
-          </div>
-        ) : generateSummary.isError ? (
-          <p className="text-[12px] text-destructive">
-            {(generateSummary.error as any)?.message ?? "Failed to generate summary."}
-          </p>
-        ) : null}
-      </ExpandableCard>
+            }
+          >
+            <div className="divide-y divide-border">
+              {signals.map((item) => (
+                <div key={item.id} className="py-2.5 first:pt-0 last:pb-0">
+                  <a
+                    href={item.url ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[13px] font-medium hover:text-info transition-colors line-clamp-1"
+                  >
+                    {item.title}
+                  </a>
+                  {item.summary && (
+                    <Markdown content={item.summary} className="text-[12px] text-muted-foreground mt-0.5" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </ExpandableCard>
+        );
+      })()}
+
+      {/* Activity Feed — bottom of page, informational log */}
+      <ActivityFeedCard />
     </div>
   );
 }
