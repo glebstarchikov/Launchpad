@@ -52,9 +52,9 @@ async function getOrGenerateSummary(userId: string, dateStr: string): Promise<st
 }
 
 function getRecentNews(userId: string): Array<{ title: string; summary: string | null; url: string | null }> {
-  return db.query(
+  return db.query<{ title: string; summary: string | null; url: string | null }, [string]>(
     "SELECT title, summary, url FROM news_items WHERE user_id = ? AND relevance_score > 0 ORDER BY created_at DESC LIMIT 5"
-  ).all(userId) as any[];
+  ).all(userId);
 }
 
 async function sendMorningBriefing() {
