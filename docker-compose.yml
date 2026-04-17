@@ -9,10 +9,11 @@ services:
     env_file: .env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "bun", "-e", "await fetch('http://localhost:3001/')"]
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:3001/"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
 
 volumes:
   launchpad_data:
