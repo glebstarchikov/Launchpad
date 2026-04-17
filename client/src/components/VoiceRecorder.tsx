@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from "react";
-import { Mic, Square, Loader2 } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Mic, Square, Loader2, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface VoiceRecorderProps {
@@ -11,13 +11,18 @@ interface VoiceRecorderProps {
 export default function VoiceRecorder({ onRecorded, isProcessing, disabled }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [preview, setPreview] = useState<{ blob: Blob; url: string } | null>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval>>();
-  // Store latest onRecorded in a ref so startRecording stays stable
-  // regardless of whether the parent re-creates the callback each render.
   const onRecordedRef = useRef(onRecorded);
   onRecordedRef.current = onRecorded;
+
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview.url);
+    };
+  }, [preview]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -36,7 +41,7 @@ export default function VoiceRecorder({ onRecorded, isProcessing, disabled }: Vo
       recorder.onstop = () => {
         const blob = new Blob(chunks.current, { type: recorder.mimeType });
         stream.getTracks().forEach((t) => t.stop());
-        onRecordedRef.current(blob);
+        setPreview({ blob, url: URL.createObjectURL(blob) });
       };
 
       recorder.start(1000);
@@ -44,9 +49,7 @@ export default function VoiceRecorder({ onRecorded, isProcessing, disabled }: Vo
       setIsRecording(true);
       setElapsed(0);
 
-      timerRef.current = setInterval(() => {
-        setElapsed((prev) => prev + 1);
-      }, 1000);
+      timerRef.current = setInterval(() => setElapsed((prev) => prev + 1), 1000);
     } catch (err) {
       console.error("Microphone access denied:", err);
     }
@@ -59,6 +62,18 @@ export default function VoiceRecorder({ onRecorded, isProcessing, disabled }: Vo
     setIsRecording(false);
     clearInterval(timerRef.current);
   }, []);
+
+  const submit = useCallback(() => {
+    if (!preview) return;
+    onRecordedRef.current(preview.blob);
+    URL.revokeObjectURL(preview.url);
+    setPreview(null);
+  }, [preview]);
+
+  const discard = useCallback(() => {
+    if (preview) URL.revokeObjectURL(preview.url);
+    setPreview(null);
+  }, [preview]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -75,14 +90,24 @@ export default function VoiceRecorder({ onRecorded, isProcessing, disabled }: Vo
     );
   }
 
+  if (preview) {
+    return (
+      <div className="flex items-center gap-2 flex-wrap">
+        <audio src={preview.url} controls className="h-8 max-w-[200px]" />
+        <Button size="sm" variant="outline" onClick={discard} className="h-8 w-8 p-0" title="Discard">
+          <Trash2 size={13} />
+        </Button>
+        <Button size="sm" onClick={submit} className="h-8 gap-1.5">
+          <Send size={13} />
+          Save idea
+        </Button>
+      </div>
+    );
+  }
+
   if (isRecording) {
     return (
-      <Button
-        size="sm"
-        variant="destructive"
-        onClick={stopRecording}
-        className="h-8 gap-1.5"
-      >
+      <Button size="sm" variant="destructive" onClick={stopRecording} className="h-8 gap-1.5">
         <Square size={12} className="fill-current" />
         <span className="font-mono text-xs tabular-nums">{formatTime(elapsed)}</span>
         Stop
@@ -91,13 +116,7 @@ export default function VoiceRecorder({ onRecorded, isProcessing, disabled }: Vo
   }
 
   return (
-    <Button
-      size="sm"
-      variant="outline"
-      onClick={startRecording}
-      disabled={disabled}
-      className="h-8 gap-1.5"
-    >
+    <Button size="sm" variant="outline" onClick={startRecording} disabled={disabled} className="h-8 gap-1.5">
       <Mic size={14} />
       Record
     </Button>

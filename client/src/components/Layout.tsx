@@ -30,6 +30,10 @@ export default function Layout() {
       queryClient.clear();
       navigate("/login");
     },
+    onError: () => {
+      queryClient.clear();
+      navigate("/login");
+    },
   });
 
   const initials =
