@@ -77,7 +77,7 @@ export default function Layout() {
 
   return (
     <TooltipProvider delayDuration={400}>
-      <div className="flex flex-col min-h-screen bg-background">
+      <div className="flex flex-col h-screen overflow-hidden bg-background">
         {/* ═══ Global header bar — always visible, full width ═══ */}
         <header className="h-[48px] flex items-center px-3 shrink-0 border-b border-border/50 bg-background z-[60] relative">
           {/* Left: toggle + brand */}
