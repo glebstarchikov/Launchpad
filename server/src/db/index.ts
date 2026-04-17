@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+import { runMigrations } from "./migrations.ts";
 
 const dbPath = process.env.DATABASE_PATH ?? "./launchpad.db";
 export const db = new Database(dbPath, { create: true });
@@ -26,27 +27,10 @@ db.run(`CREATE TABLE IF NOT EXISTS projects (
   tech_stack TEXT NOT NULL DEFAULT '[]',
   last_deployed INTEGER,
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  updated_at INTEGER NOT NULL,
+  starred INTEGER NOT NULL DEFAULT 0,
+  github_repo TEXT
 )`);
-
-try { db.run(`ALTER TABLE projects ADD COLUMN starred INTEGER NOT NULL DEFAULT 0`); } catch {}
-try { db.run(`ALTER TABLE projects ADD COLUMN github_repo TEXT`); } catch {}
-try { db.run(`ALTER TABLE tech_debt ADD COLUMN severity TEXT`); } catch {}
-try { db.run(`ALTER TABLE tech_debt ADD COLUMN category TEXT`); } catch {}
-try { db.run(`ALTER TABLE tech_debt ADD COLUMN effort TEXT`); } catch {}
-try { db.run(`ALTER TABLE launch_checklist ADD COLUMN category TEXT`); } catch {}
-try { db.run(`ALTER TABLE launch_checklist ADD COLUMN min_stage TEXT`); } catch {}
-try { db.run(`ALTER TABLE launch_checklist ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`); } catch {}
-try { db.run(`ALTER TABLE launch_checklist ADD COLUMN priority TEXT`); } catch {}
-try { db.run(`ALTER TABLE legal_items ADD COLUMN priority TEXT`); } catch {}
-try { db.run(`ALTER TABLE legal_items ADD COLUMN category TEXT`); } catch {}
-try { db.run(`ALTER TABLE legal_items ADD COLUMN why TEXT`); } catch {}
-try { db.run(`ALTER TABLE legal_items ADD COLUMN action TEXT`); } catch {}
-try { db.run(`ALTER TABLE legal_items ADD COLUMN resources TEXT`); } catch {}
-try { db.run(`ALTER TABLE legal_items ADD COLUMN scope TEXT NOT NULL DEFAULT 'country'`); } catch {}
-try { db.run(`ALTER TABLE legal_items ADD COLUMN scope_code TEXT`); } catch {}
-try { db.run(`ALTER TABLE legal_items ADD COLUMN last_reviewed_at INTEGER`); } catch {}
-try { db.run(`ALTER TABLE legal_items ADD COLUMN status_note TEXT`); } catch {}
 
 db.run(`CREATE TABLE IF NOT EXISTS project_links (
   id TEXT PRIMARY KEY,
@@ -69,7 +53,16 @@ db.run(`CREATE TABLE IF NOT EXISTS legal_items (
   country_code TEXT NOT NULL,
   item TEXT NOT NULL,
   completed INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  priority TEXT,
+  category TEXT,
+  why TEXT,
+  action TEXT,
+  resources TEXT,
+  scope TEXT NOT NULL DEFAULT 'country',
+  scope_code TEXT,
+  last_reviewed_at INTEGER,
+  status_note TEXT
 )`);
 
 db.run(`CREATE TABLE IF NOT EXISTS launch_checklist (
@@ -77,7 +70,11 @@ db.run(`CREATE TABLE IF NOT EXISTS launch_checklist (
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   item TEXT NOT NULL,
   completed INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  category TEXT,
+  min_stage TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  priority TEXT
 )`);
 
 db.run(`CREATE TABLE IF NOT EXISTS mrr_history (
@@ -124,7 +121,10 @@ db.run(`CREATE TABLE IF NOT EXISTS tech_debt (
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   note TEXT NOT NULL,
   resolved INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  severity TEXT,
+  category TEXT,
+  effort TEXT
 )`);
 
 db.run(`CREATE TABLE IF NOT EXISTS files (
@@ -172,6 +172,7 @@ db.run(`CREATE TABLE IF NOT EXISTS news_items (
   created_at INTEGER NOT NULL
 )`);
 
+// Indexes
 db.run("CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)");
 db.run("CREATE INDEX IF NOT EXISTS idx_project_links_project_id ON project_links(project_id)");
 db.run("CREATE INDEX IF NOT EXISTS idx_project_countries_project_id ON project_countries(project_id)");
@@ -189,19 +190,18 @@ db.run("CREATE INDEX IF NOT EXISTS idx_news_sources_user_id ON news_sources(user
 db.run("CREATE INDEX IF NOT EXISTS idx_news_items_user_id ON news_items(user_id)");
 db.run("CREATE INDEX IF NOT EXISTS idx_news_items_source_id ON news_items(source_id)");
 
+// Run schema migrations (tracks version via PRAGMA user_version)
+runMigrations(db);
+
 // One-time cleanup: convert legacy "EU" country entries to scope='region'/scope_code='eu'.
 // Idempotent — re-running does nothing on already-migrated databases.
 try {
-  // Step 1: For projects that have an "EU" entry in project_countries, convert their EU legal items
-  // to the new region-scoped shape.
   db.run(
     `UPDATE legal_items
      SET scope = 'region', scope_code = 'eu', country_code = ''
      WHERE country_code = 'EU' AND scope = 'country'`
   );
 
-  // Step 2: Mark migrated EU items where the project has no EU member countries with a status note.
-  // (Hard to express in SQL alone; we do this in JS for clarity.)
   const orphans = db.query<{ project_id: string }, []>(
     `SELECT DISTINCT li.project_id FROM legal_items li
      WHERE li.scope = 'region' AND li.scope_code = 'eu' AND li.status_note IS NULL
@@ -223,7 +223,6 @@ try {
     );
   }
 
-  // Step 3: Remove the bogus "EU" rows from project_countries.
   db.run(`DELETE FROM project_countries WHERE country_code = 'EU'`);
 } catch (e) {
   console.warn("[db] EU cleanup migration error (likely benign on fresh DB):", (e as Error).message);
