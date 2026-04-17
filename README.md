@@ -31,20 +31,33 @@ A self-hosted founder command center. Track your projects, ideas, revenue, legal
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/your-username/launchpad.git
-cd launchpad
+git clone https://github.com/glebstarchikov/Launchpad.git
+cd Launchpad
 
 # 2. Create your .env file
 cp .env.example .env
 # Edit .env — at minimum set JWT_SECRET and LAUNCHPAD_USER_EMAIL
 
-# 3. Start
+# 3. Generate a secure JWT_SECRET
+openssl rand -hex 32
+
+# 4. Start
 docker compose up -d
 
-# 4. Open http://localhost:3001 and register your account
+# 5. Open http://localhost:3001 and register your account
 ```
 
+> **Important:** Register your account immediately after the first start. Registration is permanently closed once the first user exists — this is by design for a single-user app.
+
 Data is persisted in Docker volumes (`launchpad_data` for the SQLite DB, `launchpad_uploads` for files).
+
+### Pre-built image (faster)
+
+Skip the build step by using the pre-built image from GitHub Container Registry. Replace the `build: .` line in `docker-compose.yml` with:
+
+```yaml
+image: ghcr.io/glebstarchikov/launchpad:latest
+```
 
 ## Local development
 
@@ -63,8 +76,8 @@ See [`.env.example`](.env.example) for the full list with comments. Required:
 
 | Variable | Description |
 |---|---|
-| `JWT_SECRET` | Long random string — required in production |
-| `LAUNCHPAD_USER_EMAIL` | Your login email — used by Telegram bot to find your account |
+| `JWT_SECRET` | Long random string — generate with `openssl rand -hex 32` |
+| `LAUNCHPAD_USER_EMAIL` | Your login email — must match the email you registered with; used by the Telegram bot and cron |
 
 Optional integrations:
 
