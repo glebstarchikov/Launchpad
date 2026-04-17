@@ -107,7 +107,7 @@ export const CHECKLIST_FOR_PROFIT: ChecklistItem[] = [
   { item: "Configure payment processing", category: "infra", min_stage: "building", sort_order: 397 },
   { item: "Set up webhook handling", category: "infra", min_stage: "building", sort_order: 398 },
   { item: "Define rate limiting", category: "infra", min_stage: "building", sort_order: 399 },
-  { item: "Set up secrets management", category: "infra", min_stage: "building", sort_order: 399 },
+  { item: "Set up secrets management", category: "infra", min_stage: "building", sort_order: 400 },
 
   // Legal
   { item: "Draft Terms of Service", category: "legal", min_stage: "building", sort_order: 410, priority: "blocker" },

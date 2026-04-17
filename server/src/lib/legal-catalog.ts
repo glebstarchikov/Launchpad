@@ -304,7 +304,7 @@ export const LEGAL_CATALOG: LegalCatalogItem[] = [
     resources: [
       { label: "152-ФЗ full text (consultant.ru)", url: "https://www.consultant.ru/document/cons_doc_LAW_61801/" },
       { label: "Roskomnadzor official guidance", url: "https://rkn.gov.ru/personal-data/" },
-      { label: "152-ФЗ on pravo.gov.ru", url: "http://pravo.gov.ru/" },
+      { label: "152-ФЗ on pravo.gov.ru", url: "https://pravo.gov.ru/" },
     ],
     project_types: ["for-profit"],
     countries: ["RU"],
@@ -737,7 +737,7 @@ export const LEGAL_CATALOG: LegalCatalogItem[] = [
     why: "Lei Geral de Proteção de Dados (LGPD) is Brazil's GDPR-equivalent law. Applies to any processing of Brazilian residents' data, including by foreign companies. ANPD enforces with fines up to 2% of revenue (capped at BRL 50M).",
     action: "Publish a Portuguese Privacy Policy disclosing: data categories, purposes, legal basis, retention, sharing, user rights (access, correction, deletion, portability), and DPO contact. Appoint an Encarregado (DPO).",
     resources: [
-      { label: "LGPD full text (planalto.gov.br)", url: "http://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709.htm" },
+      { label: "LGPD full text (planalto.gov.br)", url: "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709.htm" },
       { label: "ANPD website", url: "https://www.gov.br/anpd/" },
     ],
     project_types: ["for-profit"],
@@ -751,7 +751,7 @@ export const LEGAL_CATALOG: LegalCatalogItem[] = [
     why: "Brazilian Consumer Defense Code provides strong consumer protection that overrides contract terms. Requires clear disclosure of terms, right to cancel digital purchases within 7 days, and prohibits abusive clauses.",
     action: "Publish ToS in Portuguese covering CDC requirements: clear identification of seller, total price, cancellation right (7-day cooling off for distance sales), refund procedure, complaint channel.",
     resources: [
-      { label: "CDC full text (planalto.gov.br)", url: "http://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm" },
+      { label: "CDC full text (planalto.gov.br)", url: "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm" },
     ],
     project_types: ["for-profit"],
     countries: ["BR"],

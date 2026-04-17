@@ -68,9 +68,9 @@ describe("getDefaultChecklist", () => {
     expect(blockerItems).toContain("Draft Privacy Policy");
   });
 
-  test("sort_order values exist within CHECKLIST_FOR_PROFIT", () => {
-    const orders = CHECKLIST_FOR_PROFIT.map((i) => i.sort_order);
-    expect(orders.length).toBeGreaterThan(0);
-    // Note: sort_order values may not be unique due to ordering/grouping needs
+  test("sort_order values are unique within CHECKLIST_FOR_PROFIT", () => {
+    const orders = CHECKLIST_FOR_PROFIT.map(i => i.sort_order);
+    const unique = new Set(orders);
+    expect(unique.size).toBe(orders.length);
   });
 });

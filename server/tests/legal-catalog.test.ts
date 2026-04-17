@@ -1,5 +1,5 @@
 import { test, expect, describe } from "bun:test";
-import { LEGAL_CATALOG } from "../src/lib/legal-catalog.ts";
+import { LEGAL_CATALOG, EU_MEMBER_CODES } from "../src/lib/legal-catalog.ts";
 
 describe("LEGAL_CATALOG", () => {
   test("catalog is non-empty", () => {
@@ -81,13 +81,19 @@ describe("LEGAL_CATALOG", () => {
     expect(gdpr?.region).toBe("eu");
   });
 
-  test("all resource links start with http:// or https://", () => {
+  test("all resource links start with https://", () => {
     for (const item of LEGAL_CATALOG) {
       for (const res of item.resources) {
-        expect(
-          res.url.startsWith("https://") || res.url.startsWith("http://")
-        ).toBe(true);
+        expect(res.url.startsWith("https://")).toBe(true);
       }
+    }
+  });
+
+  test("EU_MEMBER_CODES has 27 entries, all 2-character ISO codes", () => {
+    expect(EU_MEMBER_CODES.length).toBe(27);
+    for (const code of EU_MEMBER_CODES) {
+      expect(code.length).toBe(2);
+      expect(code).toBe(code.toUpperCase());
     }
   });
 });
