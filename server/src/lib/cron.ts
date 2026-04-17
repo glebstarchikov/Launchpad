@@ -4,7 +4,14 @@ import { generateText, isLLMAvailable } from "./llm.ts";
 import { sendMessage, isTelegramConfigured } from "./telegram.ts";
 import { fetchNewsForUser } from "../routes/news.ts";
 
-const BRIEF_HOUR = Number(process.env.TELEGRAM_BRIEF_HOUR ?? "9");
+const BRIEF_HOUR = (() => {
+  const v = Number(process.env.TELEGRAM_BRIEF_HOUR ?? "9");
+  if (!Number.isInteger(v) || v < 0 || v > 23) {
+    console.warn(`[CRON] Invalid TELEGRAM_BRIEF_HOUR="${process.env.TELEGRAM_BRIEF_HOUR}", defaulting to 9`);
+    return 9;
+  }
+  return v;
+})();
 
 export interface YesterdayActivity {
   projectsUpdated: { name: string }[];
@@ -51,14 +58,13 @@ export function collectYesterdayActivity(
   return { projectsUpdated, checklistCompleted, ideasCreated, techDebtAdded, notesAdded };
 }
 
-async function getOrGenerateSummary(userId: string, dateStr: string): Promise<string | null> {
+async function getOrGenerateSummary(userId: string, dateStr: string, llmAvailable: boolean): Promise<string | null> {
   const existing = db.query<{ summary: string }, [string, string]>(
     "SELECT summary FROM daily_summaries WHERE user_id = ? AND date = ?"
   ).get(userId, dateStr);
   if (existing) return existing.summary;
 
-  const llmStatus = await isLLMAvailable();
-  if (!llmStatus.available) return null;
+  if (!llmAvailable) return null;
 
   const activity = collectYesterdayActivity(userId, dateStr);
   const parts: string[] = [];
@@ -114,7 +120,7 @@ async function sendMorningBriefing() {
   let msg = `☀️ *Good morning, ${user.name}!*\n\n`;
 
   const llmStatus = await isLLMAvailable();
-  const summary = llmStatus.available ? await getOrGenerateSummary(user.id, yesterday) : null;
+  const summary = llmStatus.available ? await getOrGenerateSummary(user.id, yesterday, llmStatus.available) : null;
 
   if (summary) {
     msg += `📊 *Yesterday*\n${summary}\n\n`;
