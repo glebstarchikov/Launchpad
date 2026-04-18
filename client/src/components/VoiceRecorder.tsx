@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, useEffect } from "react";
-import { Mic, Square, Loader2, Send, Trash2 } from "lucide-react";
+import { useState, useRef, useCallback, useEffect, type MouseEvent } from "react";
+import { Mic, Square, Loader2, Send, Trash2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface VoiceRecorderProps {
@@ -17,10 +17,35 @@ export default function VoiceRecorder({ onRecorded, isProcessing, disabled }: Vo
   const timerRef = useRef<ReturnType<typeof setInterval>>();
   const onRecordedRef = useRef(onRecorded);
   onRecordedRef.current = onRecorded;
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
 
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview.url);
+    };
+  }, [preview]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !preview) {
+      setIsPlaying(false);
+      setCurrentTime(0);
+      setDuration(0);
+      return;
+    }
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onLoaded = () => setDuration(audio.duration);
+    const onEnded = () => setIsPlaying(false);
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("loadedmetadata", onLoaded);
+    audio.addEventListener("ended", onEnded);
+    return () => {
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("loadedmetadata", onLoaded);
+      audio.removeEventListener("ended", onEnded);
     };
   }, [preview]);
 
@@ -75,6 +100,26 @@ export default function VoiceRecorder({ onRecorded, isProcessing, disabled }: Vo
     setPreview(null);
   }, [preview]);
 
+  const togglePlay = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+    } else {
+      audio.play();
+      setIsPlaying(true);
+    }
+  }, [isPlaying]);
+
+  const handleSeek = useCallback((e: MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = Math.max(0, Math.min(pct * duration, duration));
+  }, [duration]);
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -91,16 +136,43 @@ export default function VoiceRecorder({ onRecorded, isProcessing, disabled }: Vo
   }
 
   if (preview) {
+    const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
     return (
-      <div className="flex items-center gap-2 flex-wrap">
-        <audio src={preview.url} controls className="h-8 max-w-[200px]" />
-        <Button size="sm" variant="outline" onClick={discard} className="h-8 w-8 p-0" title="Discard">
-          <Trash2 size={13} />
-        </Button>
-        <Button size="sm" onClick={submit} className="h-8 gap-1.5">
-          <Send size={13} />
-          Save idea
-        </Button>
+      <div className="rounded-md border border-border bg-card/50 px-3 py-2 w-full">
+        <audio ref={audioRef} src={preview.url} preload="metadata" className="hidden" />
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] font-mono text-muted-foreground">
+            {formatTime(Math.floor(currentTime))} / {formatTime(Math.floor(duration))}
+          </span>
+        </div>
+        <div
+          className="h-1.5 rounded-full bg-secondary cursor-pointer mb-2"
+          onClick={handleSeek}
+        >
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Button size="sm" variant="outline" onClick={togglePlay} className="h-7 w-7 p-0">
+            {isPlaying ? <Square size={10} className="fill-current" /> : <Play size={10} />}
+          </Button>
+          <div className="flex-1" />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={discard}
+            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+            title="Discard"
+          >
+            <Trash2 size={12} />
+          </Button>
+          <Button size="sm" onClick={submit} className="h-7 gap-1">
+            <Send size={11} />
+            Save idea
+          </Button>
+        </div>
       </div>
     );
   }
