@@ -348,7 +348,7 @@ function RecentProjectsCard({
           <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{projectCount}</span>
         </div>
       </CardHeader>
-      <CardContent className={cn(recentProjects.length > 0 && "overflow-y-auto max-h-[200px]")}>
+      <CardContent className={cn("max-h-[200px]", recentProjects.length > 0 && "overflow-y-auto")}>
         {recentProjects.length === 0 ? (
           <Empty icon={<FolderKanban size={20} />} title="No projects yet" />
         ) : (
