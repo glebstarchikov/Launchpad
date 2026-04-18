@@ -278,66 +278,57 @@ function ActivityFeedCard() {
   );
 }
 
-function ScoreboardCard() {
+function ScoreboardStrip() {
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard", "scoreboard"],
     queryFn: api.dashboard.scoreboard,
     staleTime: 60_000,
   });
 
-  if (isLoading) {
+  if (isLoading || !data) {
     return (
-      <Card>
-        <CardHeader className="pb-3"><CardTitle className="text-sm font-medium">This month</CardTitle></CardHeader>
-        <CardContent>
-          <div className="h-24 bg-card rounded border border-border animate-pulse" />
-        </CardContent>
-      </Card>
+      <div className="rounded-lg border border-border bg-card px-4 py-3">
+        <div className="grid grid-cols-4 divide-x divide-border">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex flex-col items-center gap-1.5 px-4">
+              <div className="h-2 w-16 bg-secondary rounded animate-pulse" />
+              <div className="h-3 w-10 bg-secondary rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
     );
   }
 
-  if (!data) return null;
-
-  const renderDeltaRow = (
+  const col = (
     label: string,
-    current: string,
+    value: string,
     delta: number,
     formatDelta: (n: number) => string,
     deltaPct: number | null = null,
+    first = false,
   ) => (
-    <div className="flex items-center justify-between py-2">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-3">
-        <span className="font-mono text-sm tabular-nums">{current}</span>
-        {delta !== 0 && (
-          <span className={cn("text-xs font-mono tabular-nums", delta > 0 ? "text-success" : "text-destructive")}>
-            {delta > 0 ? "↑" : "↓"} {formatDelta(Math.abs(delta))}
-            {deltaPct !== null && ` (${deltaPct > 0 ? "+" : ""}${deltaPct}%)`}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderStaticRow = (label: string, value: string) => (
-    <div className="flex items-center justify-between py-2">
-      <span className="text-sm text-muted-foreground">{label}</span>
+    <div className={cn("flex flex-col items-center gap-0.5 py-1 px-4", !first && "border-l border-border")}>
+      <span className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</span>
       <span className="font-mono text-sm tabular-nums">{value}</span>
+      {delta !== 0 && (
+        <span className={cn("text-[10px] font-mono tabular-nums", delta > 0 ? "text-success" : "text-destructive")}>
+          {delta > 0 ? "↑" : "↓"} {formatDelta(Math.abs(delta))}
+          {deltaPct !== null && ` (${deltaPct > 0 ? "+" : ""}${deltaPct}%)`}
+        </span>
+      )}
     </div>
   );
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium">This month</CardTitle>
-      </CardHeader>
-      <CardContent className="divide-y divide-border">
-        {renderDeltaRow("MRR", fmt(data.mrr.current), data.mrr.delta, fmt, data.mrr.delta_pct)}
-        {renderDeltaRow("Projects shipped", String(data.projectsShipped.current), data.projectsShipped.delta, String)}
-        {renderStaticRow("Legal complete", `${data.legalComplete.current_pct}%`)}
-        {renderStaticRow("Launch checklist", `${data.checklistComplete.current_pct}%`)}
-      </CardContent>
-    </Card>
+    <div className="rounded-lg border border-border bg-card py-3">
+      <div className="grid grid-cols-4">
+        {col("MRR MoM", fmt(data.mrr.current), data.mrr.delta, fmt, data.mrr.delta_pct, true)}
+        {col("Shipped", String(data.projectsShipped.current), data.projectsShipped.delta, String)}
+        {col("Legal", `${data.legalComplete.current_pct}%`, 0, String)}
+        {col("Checklist", `${data.checklistComplete.current_pct}%`, 0, String)}
+      </div>
+    </div>
   );
 }
 
@@ -531,7 +522,7 @@ export default function Dashboard() {
         <div className="lg:col-span-2">
           <ActionItemsCard />
         </div>
-        <ScoreboardCard />
+        <ScoreboardStrip />
       </div>
 
       {/* Idea Inbox */}
