@@ -66,10 +66,14 @@ export default function Ideas() {
   const voiceIdea = useMutation({
     mutationFn: (audioBlob: Blob) => api.ideas.voice(audioBlob),
     onSuccess: (result) => {
+      queryClient.setQueryData<Idea[]>(["ideas"], (old = []) => [result.idea, ...old]);
       queryClient.invalidateQueries({ queryKey: ["ideas"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setComposing(false);
       setSelected(result.idea);
+    },
+    onError: (err: Error) => {
+      alert(`Failed to save voice memo: ${err.message}`);
     },
   });
 
@@ -97,17 +101,17 @@ export default function Ideas() {
     <div className="flex h-[calc(100vh-48px)]">
       {/* Left pane */}
       <div className="w-1/3 min-w-[280px] max-w-[400px] border-r border-border flex flex-col shrink-0">
-        <div className="p-4 border-b border-border flex items-center justify-between">
-          <h1 className="text-lg font-semibold">Ideas</h1>
-          <div className="flex items-center gap-2">
-            <VoiceRecorder
-              onRecorded={(blob) => voiceIdea.mutate(blob)}
-              isProcessing={voiceIdea.isPending}
-            />
+        <div className="px-4 pt-4 pb-3 border-b border-border">
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-lg font-semibold">Ideas</h1>
             <Button size="sm" className="h-8" onClick={() => { setSelected(null); setComposing(true); }}>
               New
             </Button>
           </div>
+          <VoiceRecorder
+            onRecorded={(blob) => voiceIdea.mutate(blob)}
+            isProcessing={voiceIdea.isPending}
+          />
         </div>
         <ScrollArea className="flex-1">
           {ideas.map((idea) => (

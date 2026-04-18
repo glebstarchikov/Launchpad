@@ -95,7 +95,7 @@ function deepLinkFor(item: import("@/lib/types").ActionItem): string {
   return tab ? `/projects/${item.project_id}?tab=${tab}` : `/projects/${item.project_id}`;
 }
 
-function ActionItemsCard() {
+function ActionItemsCard({ className }: { className?: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -157,7 +157,7 @@ function ActionItemsCard() {
   };
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium">Action Items</CardTitle>
@@ -460,7 +460,7 @@ export default function Dashboard() {
 
       {/* Pipeline + Recent Projects */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2 h-[170px] overflow-hidden">
+        <Card className="lg:col-span-2">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium">Pipeline</CardTitle>
@@ -497,14 +497,14 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="h-[170px] overflow-hidden flex flex-col">
+        <Card className="flex flex-col">
           <CardHeader className="pb-3 shrink-0">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium">Recent Projects</CardTitle>
               <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{projectCount}</span>
             </div>
           </CardHeader>
-          <CardContent className={cn("flex-1 min-h-0", recentProjects.length > 0 && "overflow-y-auto")}>
+          <CardContent className={cn(recentProjects.length > 0 && "overflow-y-auto max-h-[160px]")}>
             {recentProjects.length === 0 ? (
               <Empty icon={<FolderKanban size={20} />} title="No projects yet" />
             ) : (
@@ -527,7 +527,7 @@ export default function Dashboard() {
       </div>
 
       {/* Action Items + Scoreboard side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         <div className="lg:col-span-2">
           <ActionItemsCard />
         </div>

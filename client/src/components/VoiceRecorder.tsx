@@ -85,7 +85,7 @@ export default function VoiceRecorder({ onRecorded, isProcessing, disabled }: Vo
     return (
       <Button size="sm" disabled className="h-8 gap-1.5">
         <Loader2 size={14} className="animate-spin" />
-        Transcribing...
+        Saving...
       </Button>
     );
   }
