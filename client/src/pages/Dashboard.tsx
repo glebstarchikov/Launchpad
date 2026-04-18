@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { TrendingUp, FolderKanban, Lightbulb, AlertTriangle, ArrowUpRight, Newspaper, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -489,9 +489,9 @@ export default function Dashboard() {
       </div>
 
       {/* Pipeline strip */}
-      <div
-        className="flex items-center gap-4 rounded-lg border border-border bg-card px-4 py-2.5 cursor-pointer hover:bg-secondary/30 transition-colors"
-        onClick={() => navigate("/projects")}
+      <Link
+        to="/projects"
+        className="flex items-center gap-4 rounded-lg border border-border bg-card px-4 py-2.5 hover:bg-secondary/30 transition-colors"
       >
         <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground shrink-0">Pipeline</span>
         <div className="flex-1 flex rounded-full overflow-hidden h-1.5 bg-secondary">
@@ -519,7 +519,7 @@ export default function Dashboard() {
           ))}
           <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{total} total</span>
         </div>
-      </div>
+      </Link>
 
       {/* Recent Projects */}
       <RecentProjectsCard recentProjects={recentProjects} projectCount={projectCount} />
