@@ -32,7 +32,8 @@ app.route("/api/news", newsRouter);
 app.route("/api/github", githubRouter);
 app.route("/api", miscRouter);
 
-// Static files from client/dist
+// Static files: client/public (source assets like favicon) then client/dist (built JS/CSS)
+app.use("/*", serveStatic({ root: "./client/public" }));
 app.use("/*", serveStatic({ root: "./client/dist" }));
 
 // SPA fallback
