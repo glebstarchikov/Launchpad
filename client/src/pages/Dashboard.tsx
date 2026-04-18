@@ -49,7 +49,7 @@ function ExpandableCard({
       </CardHeader>
       <CardContent>
         {isEmpty ? (
-          emptyContent
+          <div className="max-h-[200px]">{emptyContent}</div>
         ) : (
           <>
             <div className={expanded ? "" : "max-h-[200px] overflow-y-auto"}>
