@@ -8,7 +8,7 @@ import { StageBadge, Empty, fmt, STAGE_META } from "@/components/app-ui";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import Markdown from "@/components/Markdown";
-import type { ProjectStage } from "@/lib/types";
+import type { ProjectStage, Project } from "@/lib/types";
 
 const STAGES: ProjectStage[] = ["idea", "building", "beta", "live", "growing", "sunset"];
 
@@ -95,7 +95,7 @@ function deepLinkFor(item: import("@/lib/types").ActionItem): string {
   return tab ? `/projects/${item.project_id}?tab=${tab}` : `/projects/${item.project_id}`;
 }
 
-function ActionItemsCard({ className }: { className?: string }) {
+function ActionItemsCard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -157,7 +157,7 @@ function ActionItemsCard({ className }: { className?: string }) {
   };
 
   return (
-    <Card className={className}>
+    <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium">Action Items</CardTitle>
@@ -332,6 +332,45 @@ function ScoreboardStrip() {
   );
 }
 
+function RecentProjectsCard({
+  recentProjects,
+  projectCount,
+}: {
+  recentProjects: Pick<Project, "id" | "name" | "stage">[];
+  projectCount: number;
+}) {
+  const navigate = useNavigate();
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium">Recent Projects</CardTitle>
+          <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{projectCount}</span>
+        </div>
+      </CardHeader>
+      <CardContent className={cn(recentProjects.length > 0 && "overflow-y-auto max-h-[200px]")}>
+        {recentProjects.length === 0 ? (
+          <Empty icon={<FolderKanban size={20} />} title="No projects yet" />
+        ) : (
+          <div className="-mx-2">
+            {recentProjects.map((project) => (
+              <button
+                key={project.id}
+                onClick={() => navigate(`/projects/${project.id}`)}
+                className="w-full flex items-center gap-2.5 px-2 py-2.5 rounded-md hover:bg-secondary transition-colors group text-left"
+              >
+                <span className="text-[13px] font-medium flex-1 truncate">{project.name}</span>
+                <StageBadge stage={project.stage} />
+                <ArrowUpRight size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 transition-opacity" />
+              </button>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -449,81 +488,47 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Pipeline + Recent Projects */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Pipeline</CardTitle>
-              <span className="text-[11px] text-muted-foreground tabular-nums font-mono">{total} total</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex rounded-full overflow-hidden h-2 bg-secondary">
-              {STAGES.map((stage) => {
-                const count = countByStage[stage] ?? 0;
-                if (count === 0) return null;
-                const pct = (count / total) * 100;
-                return (
-                  <div
-                    key={stage}
-                    style={{ width: `${pct}%` }}
-                    className={STAGE_META[stage].className}
-                    title={`${STAGE_META[stage].label}: ${count}`}
-                  />
-                );
-              })}
-            </div>
-            <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4">
-              {STAGES.filter((s) => (countByStage[s] ?? 0) > 0).map((stage) => (
-                <div key={stage} className="flex items-center gap-2">
-                  <div className={cn("w-2 h-2 rounded-full shrink-0", STAGE_META[stage].className)} />
-                  <span className="text-[12px] text-muted-foreground">{STAGE_META[stage].label}</span>
-                  <span className="text-[12px] text-foreground font-medium font-mono tabular-nums">
-                    {countByStage[stage]}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="flex flex-col">
-          <CardHeader className="pb-3 shrink-0">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Recent Projects</CardTitle>
-              <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{projectCount}</span>
-            </div>
-          </CardHeader>
-          <CardContent className={cn(recentProjects.length > 0 && "overflow-y-auto max-h-[160px]")}>
-            {recentProjects.length === 0 ? (
-              <Empty icon={<FolderKanban size={20} />} title="No projects yet" />
-            ) : (
-              <div className="-mx-2">
-                {recentProjects.map((project) => (
-                  <button
-                    key={project.id}
-                    onClick={() => navigate(`/projects/${project.id}`)}
-                    className="w-full flex items-center gap-2.5 px-2 py-2.5 rounded-md hover:bg-secondary transition-colors group text-left"
-                  >
-                    <span className="text-[13px] font-medium flex-1 truncate">{project.name}</span>
-                    <StageBadge stage={project.stage} />
-                    <ArrowUpRight size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 transition-opacity" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Action Items + Scoreboard side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        <div className="lg:col-span-2">
-          <ActionItemsCard />
+      {/* Pipeline strip */}
+      <div
+        className="flex items-center gap-4 rounded-lg border border-border bg-card px-4 py-2.5 cursor-pointer hover:bg-secondary/30 transition-colors"
+        onClick={() => navigate("/projects")}
+      >
+        <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground shrink-0">Pipeline</span>
+        <div className="flex-1 flex rounded-full overflow-hidden h-1.5 bg-secondary">
+          {STAGES.map((stage) => {
+            const count = countByStage[stage] ?? 0;
+            if (count === 0) return null;
+            const pct = (count / total) * 100;
+            return (
+              <div
+                key={stage}
+                style={{ width: `${pct}%` }}
+                className={STAGE_META[stage].className}
+                title={`${STAGE_META[stage].label}: ${count}`}
+              />
+            );
+          })}
         </div>
-        <ScoreboardStrip />
+        <div className="flex items-center gap-4 shrink-0">
+          {STAGES.filter((s) => (countByStage[s] ?? 0) > 0).map((stage) => (
+            <div key={stage} className="flex items-center gap-1.5">
+              <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", STAGE_META[stage].className)} />
+              <span className="text-[11px] font-mono text-muted-foreground">{STAGE_META[stage].label}</span>
+              <span className="text-[11px] font-mono text-foreground font-medium tabular-nums">{countByStage[stage]}</span>
+            </div>
+          ))}
+          <span className="text-[11px] font-mono text-muted-foreground tabular-nums">{total} total</span>
+        </div>
       </div>
+
+      {/* Recent Projects */}
+      <RecentProjectsCard recentProjects={recentProjects} projectCount={projectCount} />
+
+      {/* Scoreboard strip */}
+      <ScoreboardStrip />
+
+      {/* Action Items */}
+      <ActionItemsCard />
 
       {/* Idea Inbox */}
       <ExpandableCard
