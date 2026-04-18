@@ -37,14 +37,18 @@ export default function VoiceRecorder({ onRecorded, isProcessing, disabled }: Vo
       return;
     }
     const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const onLoaded = () => setDuration(audio.duration);
+    const onDurationChange = () => {
+      if (isFinite(audio.duration)) setDuration(audio.duration);
+    };
     const onEnded = () => setIsPlaying(false);
     audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("loadedmetadata", onLoaded);
+    audio.addEventListener("loadedmetadata", onDurationChange);
+    audio.addEventListener("durationchange", onDurationChange);
     audio.addEventListener("ended", onEnded);
     return () => {
       audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("loadedmetadata", onLoaded);
+      audio.removeEventListener("loadedmetadata", onDurationChange);
+      audio.removeEventListener("durationchange", onDurationChange);
       audio.removeEventListener("ended", onEnded);
     };
   }, [preview]);
@@ -107,8 +111,10 @@ export default function VoiceRecorder({ onRecorded, isProcessing, disabled }: Vo
       audio.pause();
       setIsPlaying(false);
     } else {
-      audio.play();
-      setIsPlaying(true);
+      audio
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => setIsPlaying(false));
     }
   }, [isPlaying]);
 
