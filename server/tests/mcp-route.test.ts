@@ -1,4 +1,4 @@
-import { test, expect, describe } from "bun:test";
+import { test, expect, describe, beforeEach, afterEach } from "bun:test";
 import { Hono } from "hono";
 
 import { createMcpRouter } from "../src/routes/mcp.ts";
@@ -55,6 +55,19 @@ function buildApp(db: Database, apiKey: string | undefined) {
   app.route("/api/mcp", createMcpRouter({ database: db, apiKey }));
   return app;
 }
+
+let savedEmailEnv: string | undefined;
+
+beforeEach(() => {
+  savedEmailEnv = process.env.LAUNCHPAD_USER_EMAIL;
+  delete process.env.LAUNCHPAD_USER_EMAIL;
+});
+
+afterEach(() => {
+  if (savedEmailEnv !== undefined) {
+    process.env.LAUNCHPAD_USER_EMAIL = savedEmailEnv;
+  }
+});
 
 describe("POST /api/mcp — auth", () => {
   test("503 when MCP_API_KEY is not configured", async () => {

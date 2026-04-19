@@ -10,14 +10,10 @@ interface McpRouterOptions {
 
 function resolveUserId(database: Database): string | null {
   const email = process.env.LAUNCHPAD_USER_EMAIL;
-  if (email) {
-    const user = database.query<{ id: string }, [string]>("SELECT id FROM users WHERE email = ?").get(email);
-    if (user) return user.id;
-  }
-  // Fall back to first user in DB (mirrors cron.ts behaviour; also lets tests
-  // use an in-memory DB without needing to match the LAUNCHPAD_USER_EMAIL env var).
-  const fallback = database.query<{ id: string }, []>("SELECT id FROM users LIMIT 1").get();
-  return fallback?.id ?? null;
+  const user = email
+    ? database.query<{ id: string }, [string]>("SELECT id FROM users WHERE email = ?").get(email)
+    : database.query<{ id: string }, []>("SELECT id FROM users LIMIT 1").get();
+  return user?.id ?? null;
 }
 
 export function createMcpRouter(options: McpRouterOptions = {}): Hono {
