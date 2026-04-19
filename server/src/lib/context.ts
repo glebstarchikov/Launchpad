@@ -68,8 +68,8 @@ export function getProjectOverview(
   const checklist_total = countOne(database, "SELECT COUNT(*) as c FROM launch_checklist WHERE project_id = ?", [projectId]);
   const legal_open = countOne(database, "SELECT COUNT(*) as c FROM legal_items WHERE project_id = ? AND completed = 0", [projectId]);
   const legal_total = countOne(database, "SELECT COUNT(*) as c FROM legal_items WHERE project_id = ?", [projectId]);
-  const goals_active = countOne(database, "SELECT COUNT(*) as c FROM goals WHERE project_id = ? AND current_value < target_value", [projectId]);
-  const goals_met = countOne(database, "SELECT COUNT(*) as c FROM goals WHERE project_id = ? AND current_value >= target_value", [projectId]);
+  const goals_active = countOne(database, "SELECT COUNT(*) as c FROM goals WHERE project_id = ? AND completed = 0 AND current_value < target_value", [projectId]);
+  const goals_met = countOne(database, "SELECT COUNT(*) as c FROM goals WHERE project_id = ? AND (completed = 1 OR current_value >= target_value)", [projectId]);
 
   const recent_build_log = database.query<
     { created_at: number; source: "user" | "ai"; content: string },

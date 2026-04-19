@@ -135,12 +135,18 @@ describe("getProjectOverview", () => {
     expect(o.counts.legal_total).toBe(2);
   });
 
-  test("counts reflect goals active vs met by current_value >= target_value", () => {
+  test("counts reflect goals active vs met by current_value and completed flag", () => {
     insertProject(db, "p1", "u1");
-    db.run("INSERT INTO goals (id, project_id, description, target_value, current_value, created_at) VALUES ('g1','p1','x',100,50,1), ('g2','p1','y',100,100,2), ('g3','p1','z',100,120,3)");
+    db.run(
+      `INSERT INTO goals (id, project_id, description, target_value, current_value, completed, created_at) VALUES
+        ('g1','p1','below',100,50,0,1),
+        ('g2','p1','at',100,100,0,2),
+        ('g3','p1','above',100,120,0,3),
+        ('g4','p1','manually-completed',100,10,1,4)`,
+    );
     const o = getProjectOverview("u1", "p1", db)!;
-    expect(o.counts.goals_active).toBe(1);
-    expect(o.counts.goals_met).toBe(2);
+    expect(o.counts.goals_active).toBe(1); // only g1 (below target and not completed)
+    expect(o.counts.goals_met).toBe(3);    // g2, g3 by numbers + g4 by completed flag
   });
 
   test("recent_build_log returns up to 3 entries, newest first, with source", () => {
