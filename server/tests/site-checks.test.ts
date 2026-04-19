@@ -150,6 +150,17 @@ describe("runSiteChecks state machine", () => {
     expect(getCheck(db, "p1")?.last_error).toBeNull();
   });
 
+  test("stage transition out of live/growing deletes stale site_checks row", async () => {
+    insertProject(db, "p1", "https://example.com", "live");
+    await runSiteChecks(db, pingFail500, captureAlert);
+    await runSiteChecks(db, pingFail500, captureAlert);
+    expect(getCheck(db, "p1")?.is_alerting).toBe(1);
+    // User moves project to sunset — the stale is_alerting=1 row should not linger.
+    db.run("UPDATE projects SET stage = 'sunset' WHERE id = 'p1'");
+    await runSiteChecks(db, pingOk, captureAlert);
+    expect(getCheck(db, "p1")).toBeNull();
+  });
+
   test("project name with markdown chars is escaped in alerts", async () => {
     // Raw name would crash Telegram's Markdown parser: _bold_ *star* `code`
     db.run("INSERT INTO projects (id, user_id, name, url, stage) VALUES (?, ?, ?, ?, ?)",

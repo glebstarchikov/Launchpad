@@ -30,6 +30,16 @@ export async function runSiteChecks(
   ping: PingFn = pingProject,
   alert: AlertFn = sendMessage,
 ): Promise<void> {
+  // Drop stale rows for projects that are no longer monitored (stage moved out
+  // of live/growing). Next time a project returns to live/growing, the state
+  // machine starts fresh rather than resurrecting a stale is_alerting=1 flag.
+  database.run(
+    `DELETE FROM site_checks
+     WHERE project_id IN (
+       SELECT id FROM projects WHERE stage NOT IN ('live', 'growing')
+     )`,
+  );
+
   const projects = database.query<ProjectToCheck, []>(
     `SELECT id, name, url FROM projects
      WHERE stage IN ('live', 'growing')
@@ -37,7 +47,10 @@ export async function runSiteChecks(
        AND url != ''`,
   ).all();
 
-  for (const project of projects) {
+  // Run pings in parallel. Each project's state is independent, so parallel
+  // execution is safe and keeps the 30-min tick fast (bounded by the slowest
+  // single ping instead of the sum of all ping durations).
+  await Promise.allSettled(projects.map(async (project) => {
     const result = await ping(project.url);
     const now = Date.now();
     const existing = database.query<ExistingCheck, [string]>(
@@ -99,5 +112,5 @@ export async function runSiteChecks(
         now,
       ],
     );
-  }
+  }));
 }
