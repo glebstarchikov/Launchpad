@@ -36,8 +36,31 @@ const migrations: Migration[] = [
       }
     },
   },
-  // Add future migrations here:
-  // { version: 2, up: (db) => { db.run(`ALTER TABLE ...`); } },
+  {
+    // v2: built-in site monitoring — per-project check state for pinger
+    version: 2,
+    up: (db) => {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS site_checks (
+          project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+          last_check_at INTEGER NOT NULL,
+          last_status TEXT NOT NULL,
+          last_status_code INTEGER,
+          last_response_time_ms INTEGER,
+          last_error TEXT,
+          consecutive_failures INTEGER NOT NULL DEFAULT 0,
+          is_alerting INTEGER NOT NULL DEFAULT 0,
+          went_down_at INTEGER,
+          updated_at INTEGER NOT NULL
+        )
+      `);
+      db.run(`
+        CREATE INDEX IF NOT EXISTS idx_site_checks_alerting
+          ON site_checks(is_alerting)
+          WHERE is_alerting = 1
+      `);
+    },
+  },
 ];
 
 export function runMigrations(db: Database): void {
