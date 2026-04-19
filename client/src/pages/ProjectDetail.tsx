@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  BookOpen, ChevronDown, ChevronRight, ExternalLink, Pencil, Plus, RefreshCw, Trash2, X, Check, Star,
+  BookOpen, ChevronDown, ChevronRight, Copy, ExternalLink, Pencil, Plus, RefreshCw, Trash2, X, Check, Star,
   Github, GitCommit, GitPullRequest, CircleDot,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
@@ -1540,7 +1540,11 @@ function BuildLogTab({ id, queryClient }: { id: string; queryClient: ReturnType<
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notes", id] }),
   });
 
-  const buildLogEntries = (allNotes.data ?? []).filter((n: Note) => n.is_build_log === 1);
+  const [buildLogFilter, setBuildLogFilter] = useState<"all" | "user" | "ai">("all");
+  const allBuildLog = (allNotes.data ?? []).filter((n: Note) => n.is_build_log === 1);
+  const buildLogEntries = allBuildLog.filter((n: Note) =>
+    buildLogFilter === "all" ? true : n.source === buildLogFilter,
+  );
 
   return (
     <div className="space-y-4 w-full">
@@ -1576,12 +1580,33 @@ function BuildLogTab({ id, queryClient }: { id: string; queryClient: ReturnType<
         </CardContent>
       </Card>
 
+      {/* Build log filter */}
+      {allBuildLog.length > 0 && (
+        <div className="flex items-center gap-1 text-[11px]">
+          {(["all", "user", "ai"] as const).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setBuildLogFilter(key)}
+              className={cn(
+                "px-2 py-1 rounded-md transition-colors",
+                buildLogFilter === key
+                  ? "bg-secondary text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {key === "all" ? "All" : key === "user" ? "Mine" : "AI"}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Build log feed */}
       {buildLogEntries.length === 0 ? (
         <Empty
           icon={<BookOpen size={32} />}
-          title="No build log entries yet"
-          sub="Toggle 'Build log entry' when saving a note to add it here."
+          title={allBuildLog.length === 0 ? "No build log entries yet" : "No entries match this filter"}
+          sub={allBuildLog.length === 0 ? "Toggle 'Build log entry' when saving a note to add it here." : undefined}
         />
       ) : (
         <div className="space-y-3">
@@ -1599,9 +1624,16 @@ function BuildLogTab({ id, queryClient }: { id: string; queryClient: ReturnType<
                     <Trash2 size={12} />
                   </Button>
                 </div>
-                <p className="text-xs font-mono text-muted-foreground mt-2">
-                  {new Date(entry.created_at).toLocaleString()}
-                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <p className="text-xs font-mono text-muted-foreground">
+                    {new Date(entry.created_at).toLocaleString()}
+                  </p>
+                  {entry.source === "ai" && (
+                    <span className="text-[9px] bg-secondary border border-border rounded px-1.5 py-0.5 text-muted-foreground font-mono">
+                      AI
+                    </span>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -1613,6 +1645,17 @@ function BuildLogTab({ id, queryClient }: { id: string; queryClient: ReturnType<
 
 function ProjectInfoCard({ project, id, queryClient }: { project: Project; id: string; queryClient: ReturnType<typeof useQueryClient> }) {
   const [editing, setEditing] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const handleCopyOverview = async () => {
+    try {
+      const md = await api.projects.getOverviewMarkdown(id);
+      await navigator.clipboard.writeText(md);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Copy overview failed:", err);
+    }
+  };
   const [form, setForm] = useState({
     name: project.name,
     description: project.description ?? "",
@@ -1658,9 +1701,20 @@ function ProjectInfoCard({ project, id, queryClient }: { project: Project; id: s
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium">Project Info</CardTitle>
           {!editing ? (
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(true)}>
-              <Pencil size={13} />
-            </Button>
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                title={copied ? "Copied!" : "Copy project overview for AI"}
+                onClick={handleCopyOverview}
+              >
+                {copied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(true)}>
+                <Pencil size={13} />
+              </Button>
+            </div>
           ) : (
             <div className="flex gap-1">
               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={handleCancel}>
