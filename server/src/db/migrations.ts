@@ -61,6 +61,16 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    // v3: notes.source — distinguishes user-authored vs AI-authored build log entries
+    version: 3,
+    up: (db) => {
+      db.run(
+        `ALTER TABLE notes ADD COLUMN source TEXT NOT NULL DEFAULT 'user'
+          CHECK (source IN ('user', 'ai'))`,
+      );
+    },
+  },
 ];
 
 export function runMigrations(db: Database): void {
