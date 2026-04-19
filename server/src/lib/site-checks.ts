@@ -6,6 +6,13 @@ import { pingProject, type PingResult } from "./pinger.ts";
 type PingFn = (url: string) => Promise<PingResult>;
 type AlertFn = (msg: string) => Promise<void>;
 
+// Escape Telegram legacy-Markdown reserved chars (_ * ` [) in user-controlled
+// strings like project names/URLs — unescaped markdown causes Telegram to
+// reject the message with HTTP 400, which then gets silently swallowed.
+function escapeMd(s: string): string {
+  return s.replace(/([_*`\[])/g, "\\$1");
+}
+
 interface ExistingCheck {
   consecutive_failures: number;
   is_alerting: number;
@@ -47,7 +54,7 @@ export async function runSiteChecks(
       last_status = "up";
       if (is_alerting === 1 && went_down_at !== null) {
         const duration_min = Math.round((now - went_down_at) / 60000);
-        await alert(`🟢 *${project.name}* is back up (was down ${duration_min} min)`);
+        await alert(`🟢 *${escapeMd(project.name)}* is back up (was down ${duration_min} min)`);
         is_alerting = 0;
         went_down_at = null;
       }
@@ -57,7 +64,7 @@ export async function runSiteChecks(
       consecutive_failures += 1;
       if (consecutive_failures >= 2 && is_alerting === 0) {
         const reason = result.error ?? `HTTP ${result.status_code}`;
-        await alert(`🔴 *${project.name}* is down\n${reason}\n${project.url}`);
+        await alert(`🔴 *${escapeMd(project.name)}* is down\n${escapeMd(reason)}\n${escapeMd(project.url)}`);
         is_alerting = 1;
         went_down_at = now;
       }

@@ -149,4 +149,14 @@ describe("runSiteChecks state machine", () => {
     await runSiteChecks(db, pingOk, captureAlert);
     expect(getCheck(db, "p1")?.last_error).toBeNull();
   });
+
+  test("project name with markdown chars is escaped in alerts", async () => {
+    // Raw name would crash Telegram's Markdown parser: _bold_ *star* `code`
+    db.run("INSERT INTO projects (id, user_id, name, url, stage) VALUES (?, ?, ?, ?, ?)",
+      ["p1", "u1", "My_Project*v2`beta`", "https://example.com", "live"]);
+    await runSiteChecks(db, pingFail500, captureAlert);
+    await runSiteChecks(db, pingFail500, captureAlert);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toContain("My\\_Project\\*v2\\`beta\\`");
+  });
 });
