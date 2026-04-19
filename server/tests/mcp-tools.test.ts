@@ -11,6 +11,7 @@ import {
   getGoals,
   getMrr,
   getSiteHealth,
+  getGithubCommits,
 } from "../src/lib/mcp-tools.ts";
 
 function createTestDb(): Database {
@@ -284,5 +285,20 @@ describe("getSiteHealth", () => {
     const db = createTestDb();
     insertProject(db, "p1", "u1");
     expect(() => getSiteHealth("u2", "p1", db)).toThrow("project not found");
+  });
+});
+
+describe("getGithubCommits", () => {
+  test("returns [] when project has no github_repo set", async () => {
+    const db = createTestDb();
+    insertProject(db, "p1", "u1");
+    const result = await getGithubCommits("u1", "p1", {}, db);
+    expect(result).toEqual([]);
+  });
+
+  test("throws 'project not found' for other user's project", async () => {
+    const db = createTestDb();
+    insertProject(db, "p1", "u1");
+    await expect(getGithubCommits("u2", "p1", {}, db)).rejects.toThrow("project not found");
   });
 });
