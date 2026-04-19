@@ -1646,6 +1646,7 @@ function BuildLogTab({ id, queryClient }: { id: string; queryClient: ReturnType<
 function ProjectInfoCard({ project, id, queryClient }: { project: Project; id: string; queryClient: ReturnType<typeof useQueryClient> }) {
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const [form, setForm] = useState({
     name: project.name,
     description: project.description ?? "",
@@ -1663,6 +1664,8 @@ function ProjectInfoCard({ project, id, queryClient }: { project: Project; id: s
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Copy overview failed:", err);
+      setCopyFailed(true);
+      setTimeout(() => setCopyFailed(false), 2000);
     }
   };
 
@@ -1707,10 +1710,16 @@ function ProjectInfoCard({ project, id, queryClient }: { project: Project; id: s
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                title={copied ? "Copied!" : "Copy project overview for AI"}
+                title={copied ? "Copied!" : copyFailed ? "Copy failed" : "Copy project overview for AI"}
                 onClick={handleCopyOverview}
               >
-                {copied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
+                {copied ? (
+                  <Check size={13} className="text-success" />
+                ) : copyFailed ? (
+                  <X size={13} className="text-destructive" />
+                ) : (
+                  <Copy size={13} />
+                )}
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(true)}>
                 <Pencil size={13} />
