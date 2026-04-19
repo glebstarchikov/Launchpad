@@ -3,6 +3,7 @@ import type { Database } from "bun:sqlite";
 import { generateText, isLLMAvailable } from "./llm.ts";
 import { sendMessage, isTelegramConfigured } from "./telegram.ts";
 import { fetchNewsForUser } from "../routes/news.ts";
+import { runSiteChecks } from "./site-checks.ts";
 
 const BRIEF_HOUR = (() => {
   const v = Number(process.env.TELEGRAM_BRIEF_HOUR ?? "9");
@@ -167,8 +168,17 @@ async function sendMorningBriefing() {
 }
 
 export function startCron() {
+  // Site checks: run regardless of Telegram config (powers dashboard action items).
+  // Initial run primes the dashboard; every 30 min thereafter.
+  runSiteChecks().catch((e) => console.error("[CRON] initial site check failed:", e));
+  setInterval(() => {
+    runSiteChecks().catch((e) => console.error("[CRON] site check failed:", e));
+  }, 30 * 60 * 1000);
+  console.log("Site check cron scheduled (every 30 min)");
+
+  // Morning briefing: requires Telegram.
   if (!isTelegramConfigured()) {
-    console.log("Cron not started (Telegram not configured)");
+    console.log("Morning briefing cron not started (Telegram not configured)");
     return;
   }
 
