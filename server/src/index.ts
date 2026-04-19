@@ -9,6 +9,7 @@ import filesRouter from "./routes/files.ts";
 import dailySummaryRouter from "./routes/daily-summary.ts";
 import newsRouter from "./routes/news.ts";
 import githubRouter from "./routes/github.ts";
+import mcpRouter from "./routes/mcp.ts";
 import { startPolling } from "./lib/telegram.ts";
 import { startCron } from "./lib/cron.ts";
 
@@ -30,6 +31,7 @@ app.route("/api/files", filesRouter);
 app.route("/api/daily-summary", dailySummaryRouter);
 app.route("/api/news", newsRouter);
 app.route("/api/github", githubRouter);
+app.route("/api/mcp", mcpRouter);
 app.route("/api", miscRouter);
 
 // Static files: client/public (source assets like favicon) then client/dist (built JS/CSS)
