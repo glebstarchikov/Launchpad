@@ -28,7 +28,7 @@ export async function pingProject(
       response_time_ms: elapsed,
     };
   } catch (err: unknown) {
-    const isTimeout = err instanceof Error && err.name === "AbortError";
+    const isTimeout = err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError");
     const msg = err instanceof Error ? err.message : String(err);
     return {
       ok: false,
