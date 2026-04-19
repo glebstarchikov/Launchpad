@@ -133,11 +133,14 @@ export interface Idea {
   updated_at: number;
 }
 
+export type NoteSource = "user" | "ai";
+
 export interface Note {
   id: string;
   project_id: string;
   content: string;
   is_build_log: 0 | 1;
+  source: NoteSource;
   created_at: number;
 }
 

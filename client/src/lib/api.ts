@@ -73,6 +73,16 @@ export const api = {
   projects: {
     list: () => req<Project[]>("/projects"),
     get: (id: string) => req<Project>(`/projects/${id}`),
+    getOverviewMarkdown: async (id: string): Promise<string> => {
+      const res = await fetch(`${BASE}/projects/${id}/overview.md`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(body.error ?? res.statusText);
+      }
+      return res.text();
+    },
     create: (data: { name: string; description?: string; url?: string; type: ProjectType; stage: ProjectStage; tech_stack: string[] }) =>
       req<Project>("/projects", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Omit<Project, "id" | "user_id" | "created_at">>) =>
