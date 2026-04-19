@@ -9,7 +9,7 @@ Launchpad is a self-hosted project management app for solopreneurs, built as a m
   - `routes/` — one file per domain (`auth.ts`, `projects.ts`, `ideas.ts`, `mcp.ts`, etc.)
   - `lib/` — pure library functions, injectable DB (see `context.ts`, `cron.ts`, `mcp-tools.ts`)
   - `db/` — schema init + migrations (in-code, keyed by `PRAGMA user_version`)
-  - `middleware/` — auth, cors, etc.
+  - `middleware/` — `auth.ts` (JWT verification, attaches `userId` to Hono context)
   - `tests/` — `bun:test` with in-memory SQLite via `createTestDb()` pattern
 - `docs/` — `mcp-setup.md` and (gitignored) superpowers specs/plans
 - `scripts/` — one-off maintenance scripts (`reset-password.ts`, etc.)
@@ -35,6 +35,7 @@ Launchpad is a self-hosted project management app for solopreneurs, built as a m
 ```bash
 bun install
 bun dev                                       # concurrent server + tailwind + client bundler
+bun build                                     # production client bundle to client/dist/
 bun test server/tests/
 bunx tsc --noEmit -p server/tsconfig.json
 bunx tsc --noEmit -p client/tsconfig.json
