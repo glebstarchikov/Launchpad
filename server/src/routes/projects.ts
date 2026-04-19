@@ -6,6 +6,7 @@ import { itemsForCountry, itemsForRegion, isEuMember } from "../lib/legal-catalo
 import type { LegalProjectType, LegalCatalogItem } from "../lib/legal-catalog.ts";
 import { enrichSeedItems, reviewItems, type ReviewedItem } from "../lib/legal-llm.ts";
 import type { Project, ProjectLink, LaunchChecklistItem, TechDebtItem, MrrEntry, Goal, ProjectCountry, LegalItem, Note } from "../types/index.ts";
+import { getProjectOverview, projectOverviewToMarkdown } from "../lib/context.ts";
 
 
 function ownsProject(projectId: string, userId: string): boolean {
@@ -56,6 +57,20 @@ router.get("/:id", (c) => {
   ).get(c.req.param("id"), c.get("userId"));
   if (!project) return c.json({ error: "Not found" }, 404);
   return c.json(project);
+});
+
+// GET /api/projects/:id/overview.md
+// Returns a compact LLM-ready markdown snapshot of the project.
+router.get("/:id/overview.md", (c) => {
+  const userId = c.get("userId");
+  const id = c.req.param("id");
+  const overview = getProjectOverview(userId, id);
+  if (!overview) return c.json({ error: "Project not found" }, 404);
+  const md = projectOverviewToMarkdown(overview);
+  return new Response(md, {
+    status: 200,
+    headers: { "content-type": "text/markdown; charset=utf-8" },
+  });
 });
 
 // PUT /api/projects/:id
