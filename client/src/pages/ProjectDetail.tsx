@@ -1520,6 +1520,7 @@ function ComplianceTab({ id, queryClient }: { id: string; queryClient: ReturnTyp
 function BuildLogTab({ id, queryClient }: { id: string; queryClient: ReturnType<typeof useQueryClient> }) {
   const [noteContent, setNoteContent] = useState("");
   const [isBuildLog, setIsBuildLog] = useState(true);
+  const [buildLogFilter, setBuildLogFilter] = useState<"all" | "user" | "ai">("all");
 
   const allNotes = useQuery({
     queryKey: ["notes", id],
@@ -1540,7 +1541,6 @@ function BuildLogTab({ id, queryClient }: { id: string; queryClient: ReturnType<
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notes", id] }),
   });
 
-  const [buildLogFilter, setBuildLogFilter] = useState<"all" | "user" | "ai">("all");
   const allBuildLog = (allNotes.data ?? []).filter((n: Note) => n.is_build_log === 1);
   const buildLogEntries = allBuildLog.filter((n: Note) =>
     buildLogFilter === "all" ? true : n.source === buildLogFilter,
@@ -1646,6 +1646,15 @@ function BuildLogTab({ id, queryClient }: { id: string; queryClient: ReturnType<
 function ProjectInfoCard({ project, id, queryClient }: { project: Project; id: string; queryClient: ReturnType<typeof useQueryClient> }) {
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [form, setForm] = useState({
+    name: project.name,
+    description: project.description ?? "",
+    url: project.url ?? "",
+    type: project.type as ProjectType,
+    stage: project.stage as ProjectStage,
+    tech_stack: JSON.parse(project.tech_stack || "[]") as string[],
+  });
+
   const handleCopyOverview = async () => {
     try {
       const md = await api.projects.getOverviewMarkdown(id);
@@ -1656,14 +1665,6 @@ function ProjectInfoCard({ project, id, queryClient }: { project: Project; id: s
       console.error("Copy overview failed:", err);
     }
   };
-  const [form, setForm] = useState({
-    name: project.name,
-    description: project.description ?? "",
-    url: project.url ?? "",
-    type: project.type as ProjectType,
-    stage: project.stage as ProjectStage,
-    tech_stack: JSON.parse(project.tech_stack || "[]") as string[],
-  });
 
   const updateProject = useMutation({
     mutationFn: (data: typeof form) =>
