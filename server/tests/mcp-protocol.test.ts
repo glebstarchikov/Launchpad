@@ -132,6 +132,24 @@ describe("dispatchMcpRequest — tools/call happy path", () => {
     const noteCount = db.query<{ c: number }, []>("SELECT COUNT(*) as c FROM notes WHERE source = 'ai'").get()!.c;
     expect(noteCount).toBe(1);
   });
+
+  test("add_tech_debt inserts both tech_debt and companion build log in one transaction", async () => {
+    const db = createTestDb();
+    db.run("INSERT INTO projects (id, user_id, name, stage, created_at, updated_at) VALUES ('p1','u1','Alpha','live',1,1)");
+    const response = await dispatchMcpRequest(
+      { jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "add_tech_debt", arguments: { project_id: "p1", note: "refactor auth", severity: "medium" } } } as McpRequest,
+      "u1", db,
+    );
+    expect(response.result!.isError).toBeUndefined();
+    const payload = JSON.parse(response.result!.content[0].text);
+    expect(payload.id).toBeTypeOf("string");
+    expect(payload.note_id).toBeTypeOf("string");
+
+    const debtCount = db.query<{ c: number }, []>("SELECT COUNT(*) as c FROM tech_debt").get()!.c;
+    const aiLogCount = db.query<{ c: number }, []>("SELECT COUNT(*) as c FROM notes WHERE source = 'ai' AND content LIKE 'AI added tech debt:%'").get()!.c;
+    expect(debtCount).toBe(1);
+    expect(aiLogCount).toBe(1);
+  });
 });
 
 describe("dispatchMcpRequest — errors", () => {

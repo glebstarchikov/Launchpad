@@ -3,6 +3,7 @@ import { z, type ZodTypeAny } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { db as defaultDb } from "../db/index.ts";
 import * as tools from "./mcp-tools.ts";
+import { McpToolError } from "./mcp-tools.ts";
 
 const SERVER_NAME = "launchpad";
 const SERVER_VERSION = "0.1.0";
@@ -26,6 +27,8 @@ interface ToolDef {
   name: string;
   description: string;
   inputSchema: ZodTypeAny;
+  // args is typed `any` because each tool has a different Zod-derived shape;
+  // dispatchMcpRequest always calls this with `parsed.data` from the tool's own inputSchema.safeParse().
   handler: (args: any, userId: string, db: Database) => unknown | Promise<unknown>;
 }
 
@@ -136,6 +139,9 @@ const toolDefs: ToolDef[] = [
 ];
 
 const toolMap = new Map(toolDefs.map((t) => [t.name, t]));
+if (toolMap.size !== toolDefs.length) {
+  throw new Error("mcp-protocol: duplicate tool name detected in toolDefs");
+}
 
 function errorResponse(id: McpRequest["id"], code: number, message: string): McpResponse {
   return { jsonrpc: "2.0", id, error: { code, message } };
@@ -198,12 +204,11 @@ export async function dispatchMcpRequest(
       const text = typeof result === "string" ? result : JSON.stringify(result);
       return { jsonrpc: "2.0", id: req.id, result: { content: [{ type: "text", text }] } };
     } catch (err: any) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg === "project not found" || msg === "content is required" || msg === "note is required") {
+      if (err instanceof McpToolError) {
         return {
           jsonrpc: "2.0",
           id: req.id,
-          result: { isError: true, content: [{ type: "text", text: msg }] },
+          result: { isError: true, content: [{ type: "text", text: err.message }] },
         };
       }
       console.error(`[mcp] internal error in tool '${name}':`, err);

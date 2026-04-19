@@ -5,9 +5,5 @@
   "scripts": {
     "dev": "bun scripts/dev.ts",
     "build": "bun build client/src/main.tsx --outdir client/dist --minify && bunx tailwindcss -i client/src/index.css -o client/dist/index.css --minify"
-  },
-  "dependencies": {
-    "zod": "^3.25.0",
-    "zod-to-json-schema": "^3.25.2"
   }
 }

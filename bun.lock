@@ -4,10 +4,6 @@
   "workspaces": {
     "": {
       "name": "launchpad",
-      "dependencies": {
-        "zod": "^3.25.0",
-        "zod-to-json-schema": "^3.25.2",
-      },
     },
     "client": {
       "name": "launchpad-client",
@@ -50,6 +46,8 @@
       "dependencies": {
         "hono": "^4.6.0",
         "jose": "^5.9.0",
+        "zod": "^3.25.0",
+        "zod-to-json-schema": "^3.25.2",
       },
     },
   },

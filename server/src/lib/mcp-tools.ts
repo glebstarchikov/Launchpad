@@ -3,11 +3,23 @@ import { db as defaultDb } from "../db/index.ts";
 import { getProjectOverview, projectOverviewToMarkdown } from "./context.ts";
 import { getCommits } from "./github.ts";
 
+/**
+ * Thrown by tool handlers for expected, user-visible failures (missing project,
+ * invalid input). The protocol dispatcher catches these and surfaces them as
+ * isError=true in the tool-call result, not as -32603 internal errors.
+ */
+export class McpToolError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "McpToolError";
+  }
+}
+
 function assertOwnership(database: Database, userId: string, projectId: string): void {
   const p = database.query<{ id: string }, [string, string]>(
     "SELECT id FROM projects WHERE id = ? AND user_id = ?",
   ).get(projectId, userId);
-  if (!p) throw new Error("project not found");
+  if (!p) throw new McpToolError("project not found");
 }
 
 function clamp(value: number | undefined, fallback: number, max: number): number {
@@ -34,7 +46,7 @@ export function getProjectOverviewText(
   database: Database = defaultDb,
 ): string {
   const overview = getProjectOverview(userId, projectId, database);
-  if (!overview) throw new Error("project not found");
+  if (!overview) throw new McpToolError("project not found");
   return projectOverviewToMarkdown(overview);
 }
 
@@ -247,7 +259,7 @@ export function appendBuildLog(
 ): { id: string; created_at: number } {
   assertOwnership(database, userId, projectId);
   const trimmed = content.trim();
-  if (trimmed.length === 0) throw new Error("content is required");
+  if (trimmed.length === 0) throw new McpToolError("content is required");
   const id = crypto.randomUUID();
   const created_at = Date.now();
   database.run(
@@ -266,7 +278,7 @@ export function addTechDebt(
 ): { id: string; note_id: string } {
   assertOwnership(database, userId, projectId);
   const trimmed = note.trim();
-  if (trimmed.length === 0) throw new Error("note is required");
+  if (trimmed.length === 0) throw new McpToolError("note is required");
   const id = crypto.randomUUID();
   const note_id = crypto.randomUUID();
   const now = Date.now();
