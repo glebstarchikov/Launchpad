@@ -238,3 +238,48 @@ export function getSiteHealth(
   if (!row) return { status: "unknown", last_check_at: null, last_error: null };
   return { status: row.last_status, last_check_at: row.last_check_at, last_error: row.last_error };
 }
+
+export function appendBuildLog(
+  userId: string,
+  projectId: string,
+  content: string,
+  database: Database = defaultDb,
+): { id: string; created_at: number } {
+  assertOwnership(database, userId, projectId);
+  const trimmed = content.trim();
+  if (trimmed.length === 0) throw new Error("content is required");
+  const id = crypto.randomUUID();
+  const created_at = Date.now();
+  database.run(
+    "INSERT INTO notes (id, project_id, content, is_build_log, source, created_at) VALUES (?, ?, ?, 1, 'ai', ?)",
+    [id, projectId, trimmed, created_at],
+  );
+  return { id, created_at };
+}
+
+export function addTechDebt(
+  userId: string,
+  projectId: string,
+  note: string,
+  opts: { severity?: string; category?: string; effort?: string },
+  database: Database = defaultDb,
+): { id: string; note_id: string } {
+  assertOwnership(database, userId, projectId);
+  const trimmed = note.trim();
+  if (trimmed.length === 0) throw new Error("note is required");
+  const id = crypto.randomUUID();
+  const note_id = crypto.randomUUID();
+  const now = Date.now();
+  database.transaction(() => {
+    database.run(
+      `INSERT INTO tech_debt (id, project_id, note, resolved, severity, category, effort, created_at)
+       VALUES (?, ?, ?, 0, ?, ?, ?, ?)`,
+      [id, projectId, trimmed, opts.severity ?? null, opts.category ?? null, opts.effort ?? null, now],
+    );
+    database.run(
+      "INSERT INTO notes (id, project_id, content, is_build_log, source, created_at) VALUES (?, ?, ?, 1, 'ai', ?)",
+      [note_id, projectId, `AI added tech debt: ${trimmed}`, now],
+    );
+  })();
+  return { id, note_id };
+}

@@ -12,6 +12,8 @@ import {
   getMrr,
   getSiteHealth,
   getGithubCommits,
+  appendBuildLog,
+  addTechDebt,
 } from "../src/lib/mcp-tools.ts";
 
 function createTestDb(): Database {
@@ -325,5 +327,119 @@ describe("getGithubCommits", () => {
     const db = createTestDb();
     insertProject(db, "p1", "u1");
     await expect(getGithubCommits("u2", "p1", {}, db)).rejects.toThrow("project not found");
+  });
+});
+
+describe("appendBuildLog", () => {
+  test("inserts a note with source='ai' and is_build_log=1", () => {
+    const db = createTestDb();
+    insertProject(db, "p1", "u1");
+    const { id, created_at } = appendBuildLog("u1", "p1", "Something the AI did", db);
+    expect(id).toBeTypeOf("string");
+    expect(created_at).toBeTypeOf("number");
+    const row = db.query<
+      { content: string; is_build_log: number; source: string },
+      [string]
+    >("SELECT content, is_build_log, source FROM notes WHERE id = ?").get(id);
+    expect(row).toEqual({ content: "Something the AI did", is_build_log: 1, source: "ai" });
+  });
+
+  test("new entry shows up in getBuildLog with source='ai'", () => {
+    const db = createTestDb();
+    insertProject(db, "p1", "u1");
+    appendBuildLog("u1", "p1", "first ai entry", db);
+    const log = getBuildLog("u1", "p1", {}, db);
+    expect(log[0]).toMatchObject({ content: "first ai entry", source: "ai" });
+  });
+
+  test("throws 'project not found' for other user's project", () => {
+    const db = createTestDb();
+    insertProject(db, "p1", "u1");
+    expect(() => appendBuildLog("u2", "p1", "x", db)).toThrow("project not found");
+  });
+
+  test("rejects empty content", () => {
+    const db = createTestDb();
+    insertProject(db, "p1", "u1");
+    expect(() => appendBuildLog("u1", "p1", "", db)).toThrow("content is required");
+    expect(() => appendBuildLog("u1", "p1", "   ", db)).toThrow("content is required");
+  });
+});
+
+describe("addTechDebt", () => {
+  test("inserts a tech_debt row AND a build-log note in one transaction", () => {
+    const db = createTestDb();
+    insertProject(db, "p1", "u1");
+    const { id, note_id } = addTechDebt(
+      "u1", "p1", "refactor auth middleware",
+      { severity: "medium", category: "code" }, db,
+    );
+    expect(id).toBeTypeOf("string");
+    expect(note_id).toBeTypeOf("string");
+
+    const debt = db.query<
+      { note: string; severity: string; category: string | null; resolved: number },
+      [string]
+    >("SELECT note, severity, category, resolved FROM tech_debt WHERE id = ?").get(id);
+    expect(debt).toEqual({ note: "refactor auth middleware", severity: "medium", category: "code", resolved: 0 });
+
+    const logRow = db.query<
+      { content: string; source: string; is_build_log: number },
+      [string]
+    >("SELECT content, source, is_build_log FROM notes WHERE id = ?").get(note_id);
+    expect(logRow).toEqual({
+      content: "AI added tech debt: refactor auth middleware",
+      source: "ai",
+      is_build_log: 1,
+    });
+  });
+
+  test("rolls back both inserts when the second write throws", () => {
+    const db = createTestDb();
+    insertProject(db, "p1", "u1");
+
+    // Wrap db.run in a counting spy that throws on the Nth call.
+    // We want the tech_debt INSERT to succeed, then make the notes INSERT blow up.
+    const originalRun = db.run.bind(db);
+    let runCount = 0;
+    (db as any).run = (...args: any[]) => {
+      runCount++;
+      if (runCount === 2) throw new Error("simulated failure on notes insert");
+      return originalRun(...args);
+    };
+
+    expect(() =>
+      addTechDebt("u1", "p1", "bad write", {}, db),
+    ).toThrow("simulated failure");
+
+    (db as any).run = originalRun;
+
+    const debtCount = db.query<{ c: number }, []>("SELECT COUNT(*) as c FROM tech_debt").get()!.c;
+    const noteCount = db.query<{ c: number }, []>("SELECT COUNT(*) as c FROM notes").get()!.c;
+    expect(debtCount).toBe(0);
+    expect(noteCount).toBe(0);
+  });
+
+  test("throws 'project not found' for other user's project", () => {
+    const db = createTestDb();
+    insertProject(db, "p1", "u1");
+    expect(() => addTechDebt("u2", "p1", "x", {}, db)).toThrow("project not found");
+  });
+
+  test("rejects empty note", () => {
+    const db = createTestDb();
+    insertProject(db, "p1", "u1");
+    expect(() => addTechDebt("u1", "p1", "   ", {}, db)).toThrow("note is required");
+  });
+
+  test("works with all optional fields omitted", () => {
+    const db = createTestDb();
+    insertProject(db, "p1", "u1");
+    const { id } = addTechDebt("u1", "p1", "minimal", {}, db);
+    const row = db.query<
+      { severity: string | null; category: string | null; effort: string | null },
+      [string]
+    >("SELECT severity, category, effort FROM tech_debt WHERE id = ?").get(id);
+    expect(row).toEqual({ severity: null, category: null, effort: null });
   });
 });
