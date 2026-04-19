@@ -1725,7 +1725,16 @@ function ProjectInfoCard({ project, id, queryClient }: { project: Project; id: s
                 <TagInput
                   value={form.tech_stack}
                   onChange={(tags) => setForm(f => ({ ...f, tech_stack: tags }))}
-                  suggestions={["React", "Bun", "TypeScript", "PostgreSQL", "Tailwind CSS", "Next.js", "Hono", "SQLite", "Docker", "Stripe"]}
+                  suggestions={[
+                    "Anthropic", "Astro", "Bun", "Clerk", "Cloudflare", "Coolify",
+                    "Deno", "Django", "Docker", "Drizzle", "Express", "FastAPI",
+                    "Fastify", "Fly.io", "Go", "Hono", "LemonSqueezy", "MongoDB",
+                    "Neon", "Netlify", "Next.js", "Node.js", "Ollama", "OpenAI",
+                    "Paddle", "Plausible", "PostgreSQL", "PostHog", "Prisma", "Python",
+                    "Railway", "React", "Redis", "Remix", "Resend", "Rust",
+                    "SQLite", "Solid", "Stripe", "Supabase", "Svelte", "SvelteKit",
+                    "Tailwind CSS", "Turso", "TypeScript", "Vercel", "Vite", "Vue",
+                  ]}
                   placeholder="Add technology..."
                 />
               </div>
