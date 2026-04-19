@@ -4,7 +4,6 @@ import { requireAuth } from "../middleware/auth.ts";
 import type { Project, Idea } from "../types/index.ts";
 import { isLLMAvailable } from "../lib/llm.ts";
 import { isWhisperAvailable } from "../lib/whisper.ts";
-import { getMonitorStatusMap, normalizeUrl } from "../lib/uptimerobot.ts";
 import { getCommits } from "../lib/github.ts";
 
 interface ActionItem {
@@ -175,30 +174,27 @@ router.get("/dashboard/action-items", async (c) => {
     }
   });
 
-  // 4. site-down (critical) — requires UptimeRobot
+  // 4. site-down (critical) — powered by built-in site_checks table
   try {
-    const statusMap = await getMonitorStatusMap();
-    if (statusMap.size > 0) {
-      const projects = db.query<{ id: string; name: string; url: string | null }, [string]>(
-        "SELECT id, name, url FROM projects WHERE user_id = ? AND url IS NOT NULL AND url != ''"
-      ).all(userId);
-      for (const p of projects) {
-        if (!p.url) continue;
-        const status = statusMap.get(normalizeUrl(p.url));
-        if (status === "down") {
-          items.push({
-            id: `site-down:${p.id}`,
-            severity: "critical",
-            category: "site-down",
-            label: `Site down: ${p.url}`,
-            detail: null,
-            project_id: p.id,
-            project_name: p.name,
-            target: "project",
-            created_at: now,
-          });
-        }
-      }
+    const downProjects = db.query<{ id: string; name: string; url: string | null }, [string]>(
+      `SELECT p.id, p.name, p.url FROM projects p
+       JOIN site_checks s ON s.project_id = p.id
+       WHERE p.user_id = ?
+         AND p.stage IN ('live', 'growing')
+         AND s.is_alerting = 1`,
+    ).all(userId);
+    for (const p of downProjects) {
+      items.push({
+        id: `site-down:${p.id}`,
+        severity: "critical",
+        category: "site-down",
+        label: `Site down: ${p.url ?? p.name}`,
+        detail: null,
+        project_id: p.id,
+        project_name: p.name,
+        target: "project",
+        created_at: now,
+      });
     }
   } catch (e) {
     console.warn("[action-items] site-down failed:", (e as Error).message);

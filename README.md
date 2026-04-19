@@ -13,6 +13,7 @@ A self-hosted founder command center. Track your projects, ideas, revenue, legal
 - **Legal compliance** — curated catalog for 12+ countries + EU (GDPR, Russian 152-FZ, etc.) with LLM-powered review
 - **GitHub integration** — connect repos to see commits, PRs, and issues per project
 - **News feed** — Hacker News + RSS with LLM relevance scoring
+- **Site monitoring** — built-in HTTP pinger checks live/growing projects every 30 minutes; Telegram alerts on down/recovery (no external service required)
 - **Telegram bot** — capture ideas via message; receive a morning briefing with yesterday's activity + top signals
 - **File storage** — attach files to projects
 - **Dashboard** — stat cards, pipeline, action items triage, activity feed, and month-over-month scoreboard
@@ -104,7 +105,6 @@ Optional integrations:
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token from @BotFather |
 | `TELEGRAM_CHAT_ID` | Your Telegram chat ID (from @userinfobot) |
 | `TELEGRAM_BRIEF_HOUR` | Hour (0–23) for morning briefing in server local time (default: 9) |
-| `UPTIMEROBOT_API_KEY` | UptimeRobot API key for site-down action items |
 | `WHISPER_MODEL_PATH` | Path to whisper.cpp model for voice idea capture |
 
 ## LLM features
