@@ -21,6 +21,13 @@ function createTestDb(): Database {
     id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL,
     url TEXT, stage TEXT NOT NULL
   )`);
+  db.run(`CREATE TABLE notes (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    is_build_log INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  )`);
   runMigrations(db);
   return db;
 }

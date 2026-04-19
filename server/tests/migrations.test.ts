@@ -87,8 +87,17 @@ describe("migrations v3: notes.source column", () => {
     const userVersion = db.query<{ user_version: number }, []>("PRAGMA user_version").get();
     expect(userVersion?.user_version).toBeGreaterThanOrEqual(3);
 
-    const columns = db.query<{ name: string }, []>("PRAGMA table_info(notes)").all();
-    expect(columns.some((c) => c.name === "source")).toBe(true);
+    const columns = db.query<{
+      name: string;
+      type: string;
+      notnull: number;
+      dflt_value: string | null;
+    }, []>("PRAGMA table_info(notes)").all();
+    const sourceCol = columns.find((c) => c.name === "source");
+    expect(sourceCol).toBeDefined();
+    expect(sourceCol!.type).toBe("TEXT");
+    expect(sourceCol!.notnull).toBe(1);
+    expect(sourceCol!.dflt_value).toBe("'user'");
   });
 
   test("existing notes default to source='user' after migration", () => {
