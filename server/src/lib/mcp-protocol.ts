@@ -173,11 +173,13 @@ export async function dispatchMcpRequest(
       jsonrpc: "2.0",
       id: req.id,
       result: {
-        tools: toolDefs.map((t) => ({
-          name: t.name,
-          description: t.description,
-          inputSchema: zodToJsonSchema(t.inputSchema, { target: "jsonSchema7" }),
-        })),
+        tools: toolDefs.map((t) => {
+          const schema = zodToJsonSchema(t.inputSchema, { target: "jsonSchema7" }) as Record<string, unknown>;
+          // Strip the $schema meta-key — MCP tool inputSchema is a plain JSON Schema object,
+          // and some clients reject the extra field.
+          delete schema.$schema;
+          return { name: t.name, description: t.description, inputSchema: schema };
+        }),
       },
     };
   }
