@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
 import { generateText, isLLMAvailable } from "../lib/llm.ts";
+import { looksLikeRefusal } from "../lib/llm-guards.ts";
 import { getCommits } from "../lib/github.ts";
 
 const router = new Hono<{ Variables: { userId: string } }>();
@@ -74,41 +75,48 @@ function buildPrompt(activity: Awaited<ReturnType<typeof collectActivity>>, date
   const sections: string[] = [];
 
   if (activity.projectsUpdated.length > 0)
-    sections.push(`Projects updated: ${activity.projectsUpdated.map(p => p.name).join(", ")}`);
+    sections.push(`  <projects_updated>${activity.projectsUpdated.map(p => p.name).join(", ")}</projects_updated>`);
   if (activity.checklistCompleted.length > 0)
-    sections.push(`Checklist items completed: ${activity.checklistCompleted.map(c => `${c.item} (${c.project_name})`).join(", ")}`);
+    sections.push(`  <checklist_completed>${activity.checklistCompleted.map(c => `${c.item} (${c.project_name})`).join(", ")}</checklist_completed>`);
   if (activity.techDebtResolved.length > 0)
-    sections.push(`Tech debt resolved: ${activity.techDebtResolved.map(t => `${t.note} (${t.project_name})`).join(", ")}`);
+    sections.push(`  <tech_debt_resolved>${activity.techDebtResolved.map(t => `${t.note} (${t.project_name})`).join(", ")}</tech_debt_resolved>`);
   if (activity.notesAdded.length > 0)
-    sections.push(`Notes added: ${activity.notesAdded.map(n => `${n.is_build_log ? "[build log] " : ""}${n.content.slice(0, 100)} (${n.project_name})`).join("; ")}`);
+    sections.push(`  <notes_added>${activity.notesAdded.map(n => `${n.is_build_log ? "[build log] " : ""}${n.content.slice(0, 100)} (${n.project_name})`).join("; ")}</notes_added>`);
   if (activity.ideasCreated.length > 0)
-    sections.push(`Ideas captured: ${activity.ideasCreated.map(i => i.title).join(", ")}`);
+    sections.push(`  <ideas_captured>${activity.ideasCreated.map(i => i.title).join(", ")}</ideas_captured>`);
   if (activity.ideasPromoted.length > 0)
-    sections.push(`Ideas promoted to projects: ${activity.ideasPromoted.map(i => i.title).join(", ")}`);
+    sections.push(`  <ideas_promoted>${activity.ideasPromoted.map(i => i.title).join(", ")}</ideas_promoted>`);
   if (activity.goalsProgress.length > 0)
-    sections.push(`Goals: ${activity.goalsProgress.map(g => `${g.description}: ${g.current_value}/${g.target_value}${g.unit ? ` ${g.unit}` : ""} (${g.project_name})`).join(", ")}`);
+    sections.push(`  <goals>${activity.goalsProgress.map(g => `${g.description}: ${g.current_value}/${g.target_value}${g.unit ? ` ${g.unit}` : ""} (${g.project_name})`).join(", ")}</goals>`);
   if (activity.mrrEntries.length > 0)
-    sections.push(`MRR logged: ${activity.mrrEntries.map(m => `$${m.mrr} / ${m.user_count} users (${m.project_name})`).join(", ")}`);
+    sections.push(`  <mrr_logged>${activity.mrrEntries.map(m => `$${m.mrr} / ${m.user_count} users (${m.project_name})`).join(", ")}</mrr_logged>`);
   if (activity.githubCommits.length > 0)
-    sections.push(`GitHub commits: ${activity.githubCommits.map(c => `${c.message} (${c.project}, by ${c.author})`).join("; ")}`);
+    sections.push(`  <github_commits>${activity.githubCommits.map(c => `${c.message} (${c.project}, by ${c.author})`).join("; ")}</github_commits>`);
 
   if (sections.length === 0) return "";
 
-  return `Based on today's activity in my projects, generate a concise daily summary.
+  return `You write a daily summary for a solo founder. You will receive a structured activity log inside <activity> tags. Produce a markdown summary grouped into three sections.
 
-Activity for ${dateStr}:
-${sections.join("\n")}
+<rules>
+- Use ONLY facts present in the <activity> block — never speculate.
+- Never ask for clarification or say you lack access. The data below IS the data.
+- Keep each section to 3–5 bullets max. Skip a section if nothing fits.
+- Do not add any preamble or closing remarks — start with the ## header.
+</rules>
 
-Format your response as markdown:
+<output_format>
 ## Daily Summary — ${dateStr}
 ### What shipped
-- bullet points of completed work
+- <bullet>
 ### What moved forward
-- bullet points of progress
+- <bullet>
 ### Open items
-- things that are in progress but not done
+- <bullet>
+</output_format>
 
-Keep it concise. 3-5 bullets per section max. Skip empty sections. Do not add any preamble or explanation — just the formatted summary.`;
+<activity date="${dateStr}">
+${sections.join("\n")}
+</activity>`;
 }
 
 // POST /api/daily-summary/generate
@@ -137,6 +145,13 @@ router.post("/generate", async (c) => {
   }
 
   const summary = await generateText(prompt, { maxTokens: 1024, temperature: 0.3 });
+
+  // Reject refusal-style outputs rather than caching garbage to daily_summaries.
+  if (looksLikeRefusal(summary)) {
+    console.warn("[daily-summary] LLM returned a refusal-like output, not caching");
+    return c.json({ error: "LLM returned an unusable summary. Try again." }, 502);
+  }
+
   const id = crypto.randomUUID();
   const now = Date.now();
 

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { requireAuth } from "../middleware/auth.ts";
 import { generateText } from "../lib/llm.ts";
+import { looksLikeRefusal, looksLikeBinary, cleanSummary } from "../lib/llm-guards.ts";
 
 const router = new Hono<{ Variables: { userId: string } }>();
 router.use("*", requireAuth);
@@ -62,8 +63,13 @@ async function fetchArticleText(url: string): Promise<string> {
       headers: { "User-Agent": "Launchpad/1.0 (news reader)" },
     });
     if (!res.ok) return "";
+    // Skip non-HTML content — PDFs and binary blobs survive HTML stripping as
+    // garbage and cause the LLM to apologize instead of summarizing.
+    const contentType = res.headers.get("content-type") ?? "";
+    if (contentType && !contentType.includes("text/") && !contentType.includes("xml")) {
+      return "";
+    }
     const html = await res.text();
-    // Strip HTML tags, scripts, styles to get plain text
     const text = html
       .replace(/<script[\s\S]*?<\/script>/gi, "")
       .replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -71,7 +77,10 @@ async function fetchArticleText(url: string): Promise<string> {
       .replace(/\s+/g, " ")
       .trim();
     // Return first 2000 chars to keep LLM prompt reasonable
-    return text.slice(0, 2000);
+    const sliced = text.slice(0, 2000);
+    // Final defense: if what came out of HTML stripping still looks like binary
+    // (Content-Type header may be absent or misleading), drop it.
+    return looksLikeBinary(sliced) ? "" : sliced;
   } catch {
     return "";
   }
@@ -194,10 +203,22 @@ export async function fetchNewsForUser(userId: string) {
   for (const item of unsummarized) {
     try {
       const articleText = item.url ? await fetchArticleText(item.url) : "";
-      const prompt = articleText
-        ? `Summarize this article in 2-3 sentences for a software founder. Title: "${item.title}". Article content: ${articleText}. Focus on why this matters for someone building software products.`
-        : `Summarize this article in 2-3 sentences for a software founder based on the title. Title: "${item.title}". Focus on why this matters for someone building software products.`;
-      const summary = await generateText(prompt, { maxTokens: 200, temperature: 0.3 });
+      const prompt = `You summarize news headlines for a solo founder's morning briefing. You will receive an <article> block with a title and optional content. Output a single sentence (max 25 words) describing what the article is about and why it matters for someone building software products.
+
+<rules>
+- Output ONE plain sentence. No markdown, no headers, no bullet list.
+- No preamble like "Summary:" or "# Summary for Software Founders".
+- If content is missing or unusable, summarize from the title alone — never apologize or refuse.
+- Use only information in the <article> block.
+</rules>
+
+<article>
+<title>${item.title}</title>${articleText ? `\n<content>${articleText}</content>` : ""}
+</article>`;
+      const raw = await generateText(prompt, { maxTokens: 80, temperature: 0.3 });
+      const summary = cleanSummary(raw);
+      // Skip unusable outputs rather than persist them — item still displays without a summary.
+      if (looksLikeRefusal(summary)) continue;
       db.run("UPDATE news_items SET summary = ? WHERE id = ?", [summary, item.id]);
     } catch {
       // LLM failed — skip summary, item still shows without it

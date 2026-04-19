@@ -1,6 +1,7 @@
 import { db } from "../db/index.ts";
 import type { Database } from "bun:sqlite";
 import { generateText, isLLMAvailable } from "./llm.ts";
+import { looksLikeRefusal } from "./llm-guards.ts";
 import { sendMessage, isTelegramConfigured } from "./telegram.ts";
 import { fetchNewsForUser } from "../routes/news.ts";
 import { runSiteChecks } from "./site-checks.ts";
@@ -70,21 +71,38 @@ async function getOrGenerateSummary(userId: string, dateStr: string, llmAvailabl
   const activity = collectYesterdayActivity(userId, dateStr);
   const parts: string[] = [];
   if (activity.projectsUpdated.length > 0)
-    parts.push(`Projects touched: ${activity.projectsUpdated.map(p => p.name).join(", ")}`);
+    parts.push(`  <projects_updated>${activity.projectsUpdated.map(p => p.name).join(", ")}</projects_updated>`);
   if (activity.checklistCompleted.length > 0)
-    parts.push(`Checklist done: ${activity.checklistCompleted.map(c => c.item).join(", ")}`);
+    parts.push(`  <checklist_completed>${activity.checklistCompleted.map(c => c.item).join(", ")}</checklist_completed>`);
   if (activity.ideasCreated.length > 0)
-    parts.push(`Ideas captured: ${activity.ideasCreated.map(i => i.title).join(", ")}`);
+    parts.push(`  <ideas_captured>${activity.ideasCreated.map(i => i.title).join(", ")}</ideas_captured>`);
   if (activity.techDebtAdded.length > 0)
-    parts.push(`Tech debt logged: ${activity.techDebtAdded.map(t => t.note.slice(0, 60)).join(", ")}`);
+    parts.push(`  <tech_debt>${activity.techDebtAdded.map(t => t.note.slice(0, 60)).join(", ")}</tech_debt>`);
   if (activity.notesAdded.length > 0)
-    parts.push(`Build log entries: ${activity.notesAdded.map(n => n.content.slice(0, 60)).join(", ")}`);
+    parts.push(`  <build_log>${activity.notesAdded.map(n => n.content.slice(0, 60)).join("; ")}</build_log>`);
   if (parts.length === 0) return null;
 
-  const summary = await generateText(
-    `Summarize yesterday's founder activity in 3-5 concise bullets:\n${parts.join("\n")}`,
-    { maxTokens: 512, temperature: 0.3 }
-  );
+  const prompt = `You write a short morning briefing summary for a solo founder. You will receive a structured activity log from yesterday inside <activity> tags. Produce 3–5 plain-text bullets that highlight what moved.
+
+<rules>
+- Output ONLY the bullets, no preamble, no headers, no closing line.
+- Each bullet starts with "• " and is one short line.
+- Use concrete facts from the <activity> block — never speculate.
+- Never ask for clarification or say you lack access. The data below IS the data.
+- Skip any category not present.
+</rules>
+
+<activity date="${dateStr}">
+${parts.join("\n")}
+</activity>`;
+
+  const summary = await generateText(prompt, { maxTokens: 512, temperature: 0.3 });
+
+  // Don't cache refusals or near-empty outputs — drop and fall back to raw-data branch.
+  if (looksLikeRefusal(summary)) {
+    console.warn("[CRON] morning summary looks like a refusal, discarding");
+    return null;
+  }
 
   db.run(
     "INSERT OR IGNORE INTO daily_summaries (id, user_id, summary, activity_data, date, created_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -154,7 +172,7 @@ async function sendMorningBriefing() {
     msg += `📰 *Signals*\n`;
     for (const n of news) {
       msg += `• [${n.title}](${n.url ?? "#"})`;
-      if (n.summary) msg += ` — ${n.summary.split(".")[0]}.`;
+      if (n.summary) msg += ` — ${n.summary}`;
       msg += `\n`;
     }
   }
