@@ -1,4 +1,4 @@
-import { test, expect, describe, beforeEach } from "bun:test";
+import { test, expect, describe } from "bun:test";
 import { Database } from "bun:sqlite";
 import { runMigrations } from "../src/db/migrations.ts";
 import {
@@ -190,6 +190,18 @@ describe("getTechDebt", () => {
     insertProject(db, "p1", "u1");
     expect(() => getTechDebt("u2", "p1", {}, db)).toThrow("project not found");
   });
+
+  test("default limit is 200", () => {
+    const db = createTestDb();
+    insertProject(db, "p1", "u1");
+    for (let i = 0; i < 250; i++) {
+      db.run(
+        "INSERT INTO tech_debt (id, project_id, note, resolved, created_at) VALUES (?, 'p1', ?, 0, ?)",
+        [`d${i}`, `note ${i}`, i],
+      );
+    }
+    expect(getTechDebt("u1", "p1", {}, db)).toHaveLength(200);
+  });
 });
 
 describe("getChecklist", () => {
@@ -205,6 +217,19 @@ describe("getChecklist", () => {
     const db = createTestDb();
     insertProject(db, "p1", "u1");
     expect(() => getChecklist("u2", "p1", db)).toThrow("project not found");
+  });
+
+  test("orders by sort_order then created_at", () => {
+    const db = createTestDb();
+    insertProject(db, "p1", "u1");
+    db.run(
+      `INSERT INTO launch_checklist (id, project_id, item, completed, created_at, sort_order) VALUES
+        ('c1','p1','third',0,5,2),
+        ('c2','p1','first',0,10,0),
+        ('c3','p1','second',0,1,1)`,
+    );
+    const result = getChecklist("u1", "p1", db);
+    expect(result.map(r => r.item)).toEqual(["first", "second", "third"]);
   });
 });
 

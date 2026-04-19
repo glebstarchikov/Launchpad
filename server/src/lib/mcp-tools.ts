@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { db as defaultDb } from "../db/index.ts";
 import { getProjectOverview, projectOverviewToMarkdown } from "./context.ts";
+import { getCommits } from "./github.ts";
 
 function assertOwnership(database: Database, userId: string, projectId: string): void {
   const p = database.query<{ id: string }, [string, string]>(
@@ -84,11 +85,22 @@ export function getTechDebt(
   const status = opts.status ?? "open";
   const whereStatus =
     status === "all" ? "" : status === "open" ? " AND resolved = 0" : " AND resolved = 1";
-  return database.query(
+  return database.query<
+    {
+      id: string;
+      note: string;
+      resolved: 0 | 1;
+      severity: string | null;
+      category: string | null;
+      effort: string | null;
+      created_at: number;
+    },
+    [string, number]
+  >(
     `SELECT id, note, resolved, severity, category, effort, created_at
      FROM tech_debt WHERE project_id = ?${whereStatus}
      ORDER BY created_at DESC LIMIT ?`,
-  ).all(projectId, limit) as any;
+  ).all(projectId, limit);
 }
 
 export function getChecklist(
@@ -104,11 +116,21 @@ export function getChecklist(
   created_at: number;
 }> {
   assertOwnership(database, userId, projectId);
-  return database.query(
+  return database.query<
+    {
+      id: string;
+      item: string;
+      completed: 0 | 1;
+      category: string | null;
+      priority: string | null;
+      created_at: number;
+    },
+    [string]
+  >(
     `SELECT id, item, completed, category, priority, created_at
      FROM launch_checklist WHERE project_id = ?
      ORDER BY sort_order, created_at`,
-  ).all(projectId) as any;
+  ).all(projectId);
 }
 
 export function getLegal(
@@ -117,10 +139,13 @@ export function getLegal(
   database: Database = defaultDb,
 ): Array<{ id: string; country_code: string; item: string; completed: 0 | 1; created_at: number }> {
   assertOwnership(database, userId, projectId);
-  return database.query(
+  return database.query<
+    { id: string; country_code: string; item: string; completed: 0 | 1; created_at: number },
+    [string]
+  >(
     `SELECT id, country_code, item, completed, created_at FROM legal_items
      WHERE project_id = ? ORDER BY country_code, created_at`,
-  ).all(projectId) as any;
+  ).all(projectId);
 }
 
 export function getGoals(
@@ -138,10 +163,22 @@ export function getGoals(
   created_at: number;
 }> {
   assertOwnership(database, userId, projectId);
-  return database.query(
+  return database.query<
+    {
+      id: string;
+      description: string;
+      target_value: number;
+      current_value: number;
+      unit: string | null;
+      target_date: number | null;
+      completed: 0 | 1;
+      created_at: number;
+    },
+    [string]
+  >(
     `SELECT id, description, target_value, current_value, unit, target_date, completed, created_at
      FROM goals WHERE project_id = ? ORDER BY created_at DESC`,
-  ).all(projectId) as any;
+  ).all(projectId);
 }
 
 export function getMrr(
@@ -153,16 +190,22 @@ export function getMrr(
   assertOwnership(database, userId, projectId);
   if (opts.months && opts.months > 0) {
     const cutoff = Date.now() - opts.months * 30 * 24 * 60 * 60 * 1000;
-    return database.query(
+    return database.query<
+      { recorded_at: number; mrr: number; user_count: number },
+      [string, number]
+    >(
       `SELECT recorded_at, mrr, user_count FROM mrr_history
        WHERE project_id = ? AND recorded_at >= ?
        ORDER BY recorded_at DESC`,
-    ).all(projectId, cutoff) as any;
+    ).all(projectId, cutoff);
   }
-  return database.query(
+  return database.query<
+    { recorded_at: number; mrr: number; user_count: number },
+    [string]
+  >(
     `SELECT recorded_at, mrr, user_count FROM mrr_history
      WHERE project_id = ? ORDER BY recorded_at DESC`,
-  ).all(projectId) as any;
+  ).all(projectId);
 }
 
 export async function getGithubCommits(
@@ -170,13 +213,12 @@ export async function getGithubCommits(
   projectId: string,
   opts: { since?: string },
   database: Database = defaultDb,
-): Promise<Array<{ sha: string; message: string; author: string; date: string }>> {
+): Promise<Array<{ sha: string; message: string; author: string; date: string; url: string }>> {
   assertOwnership(database, userId, projectId);
   const p = database.query<{ github_repo: string | null }, [string]>(
     "SELECT github_repo FROM projects WHERE id = ?",
   ).get(projectId);
   if (!p || !p.github_repo) return [];
-  const { getCommits } = await import("./github.ts");
   const since = opts.since ?? new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
   return await getCommits(p.github_repo, since);
 }
