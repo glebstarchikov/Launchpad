@@ -57,16 +57,18 @@ function buildApp(db: Database, apiKey: string | undefined) {
 }
 
 let savedEmailEnv: string | undefined;
+let savedApiKeyEnv: string | undefined;
 
 beforeEach(() => {
   savedEmailEnv = process.env.LAUNCHPAD_USER_EMAIL;
+  savedApiKeyEnv = process.env.MCP_API_KEY;
   delete process.env.LAUNCHPAD_USER_EMAIL;
+  delete process.env.MCP_API_KEY;
 });
 
 afterEach(() => {
-  if (savedEmailEnv !== undefined) {
-    process.env.LAUNCHPAD_USER_EMAIL = savedEmailEnv;
-  }
+  if (savedEmailEnv !== undefined) process.env.LAUNCHPAD_USER_EMAIL = savedEmailEnv;
+  if (savedApiKeyEnv !== undefined) process.env.MCP_API_KEY = savedApiKeyEnv;
 });
 
 describe("POST /api/mcp — auth", () => {

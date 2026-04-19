@@ -19,11 +19,10 @@ function resolveUserId(database: Database): string | null {
 export function createMcpRouter(options: McpRouterOptions = {}): Hono {
   const router = new Hono();
   const database = options.database ?? defaultDb;
-  // options.apiKey wins over env so tests can inject deterministic values.
-  const keyOverride = options.apiKey;
 
   router.post("/", async (c) => {
-    const expectedKey = keyOverride !== undefined ? keyOverride : process.env.MCP_API_KEY;
+    // options.apiKey wins over env so tests can inject deterministic values.
+    const expectedKey = options.apiKey !== undefined ? options.apiKey : process.env.MCP_API_KEY;
     if (!expectedKey) return c.json({ error: "mcp not configured" }, 503);
     const header = c.req.header("Authorization") ?? "";
     if (header !== `Bearer ${expectedKey}`) return c.json({ error: "unauthorized" }, 401);
