@@ -8,8 +8,6 @@
 
 Track projects, ideas, revenue, legal compliance, tech debt, and daily activity — all in one place. Single-user by design, privacy-first, Docker-ready. Self-host in 10 minutes.
 
-**Live demo** → [launchpad.starco-tools.nl](https://launchpad.starco-tools.nl)
-
 ![Launchpad Projects grid](docs/screenshots/projects-hero.png)
 
 ## What it does
