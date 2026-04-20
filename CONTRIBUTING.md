@@ -19,11 +19,12 @@ Run all of these and confirm they pass:
 
 ```bash
 bun test server/tests/
+bun build                              # production client bundle to client/dist/
 bunx tsc --noEmit -p server/tsconfig.json
 bunx tsc --noEmit -p client/tsconfig.json
 ```
 
-If you change a UI component, also run `bun dev` and visually verify the change at desktop + phone widths.
+If you change a UI component, also visually verify in a browser at desktop + phone widths.
 
 ## Conventions
 
