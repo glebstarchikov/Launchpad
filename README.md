@@ -172,4 +172,4 @@ Found a vulnerability? See [SECURITY.md](SECURITY.md) for the responsible disclo
 
 ---
 
-Built for solopreneurs and the broader self-hosting community. Star ⭐ if it's useful — it helps others find the project.
+Built with love for solopreneurs and the broader self-hosting community. Star ⭐ if it's useful — it helps others find the project.
