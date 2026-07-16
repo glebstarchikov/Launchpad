@@ -168,8 +168,7 @@ Found a vulnerability? See [SECURITY.md](SECURITY.md) for the responsible disclo
 
 ## License
 
-[MIT](LICENSE) — © 2026 Gleb Starchikov
+MIT, see [LICENSE](LICENSE).
 
 ---
-
-Built with love for solopreneurs and the broader self-hosting community. Star ⭐ if it's useful — it helps others find the project.
+Part of what I build at [glebstarchikov.nl](https://glebstarchikov.nl).
